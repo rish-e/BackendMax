@@ -5,6 +5,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] — 2026-03-27
+
+### Added — Major Feature Release
+
+#### Prisma Schema Integration
+- Full `.prisma` schema parser (regex-based, no heavy dependencies)
+- Cross-references every `prisma.*` call against the actual schema
+- Detects nonexistent models, nonexistent fields, missing indexes
+- Migration drift detection (heuristic — flags stale migrations)
+- New MCP tool: `audit_prisma`
+
+#### Deeper Type Flow Analysis
+- Traces frontend response variables to check property access patterns
+- Compares frontend property usage against backend return types
+- Catches deep contract mismatches: `data.user.firstName` vs `data.user.first_name`
+- Integrated into contract checker for unified reporting
+
+#### Server Actions Support
+- Detects `'use server'` directives (file-level and inline)
+- Analyzes server action functions with same audit engines as route handlers
+- Checks validation, error handling, auth, and database call patterns
+- New MCP tool: `audit_server_actions`
+
+#### CI/CD Mode
+- New CLI entry point: `npx backend-max-cli diagnose [path] [options]`
+- Flags: `--ci`, `--min-score`, `--fail-on`, `--format`, `--json`
+- Output formats: text (colored), markdown (PR comments), JSON, SARIF (GitHub Code Scanning)
+- Exit code 1 when health score below threshold or critical issues found
+- GitHub Actions compatible
+
+#### Express.js Framework Support
+- Full Express route analyzer: `app.get()`, `router.post()`, etc.
+- Router mounting resolution (`app.use('/prefix', router)`)
+- Express-specific checks: error middleware, 404 handler, body parser, helmet/CORS
+- Framework plugin architecture — common `FrameworkAnalyzer` interface
+
+#### Next.js Pages Router Support
+- Scans `pages/api/` for Pages Router API routes
+- Detects HTTP methods from `req.method` checks inside handlers
+- Full parity with App Router analysis (validation, auth, errors, DB calls)
+
+#### Live Testing Mode (Optional)
+- HTTP endpoint testing against running dev server
+- Safety-first: only tests GET endpoints, never calls DELETE
+- Checks status codes, response times, JSON validity, error stack traces
+- Localhost-only by default — requires explicit flag for remote
+- New MCP tool: `live_test`
+
+#### Queryable API Graph
+- Builds a graph of routes, models, components, middleware, and their relationships
+- Edges: `calls`, `reads`, `writes`, `protects`, `validates`
+- Simple keyword query engine: "unprotected routes", "routes writing to users"
+- Saved to `.backend-doctor/api-graph.json`
+- New MCP tool: `query_api`
+
+#### Cross-Project Pattern Learning
+- Anonymous local pattern tracking (opt-in, never sent externally)
+- Tracks issue patterns across projects in `~/.backend-max/patterns.json`
+- Provides insights: "This is the #1 most common issue in Next.js projects"
+- New MCP tool: `get_patterns`
+
+### Changed
+- Route scanner now uses framework plugin architecture (auto-detects framework)
+- Doc generator enriched with API graph data (shows "Called by" and "Writes to")
+- Orchestrator integrates all new audit engines
+- Package now exposes two binaries: `backend-max` (MCP) and `backend-max-cli` (CI/CD)
+
 ## [1.1.0] — 2026-03-27
 
 ### Added

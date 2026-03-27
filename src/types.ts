@@ -11,13 +11,17 @@ export type IssueStatus = "open" | "fixed" | "ignored" | "regressed";
 /** Categories that an issue can belong to. */
 export type IssueCategory =
   | "contract"
+  | "contract-type-mismatch"
   | "error-handling"
   | "validation"
   | "env"
   | "security"
   | "performance"
   | "nextjs"
-  | "auth";
+  | "express"
+  | "auth"
+  | "prisma"
+  | "server-actions";
 
 // ---------------------------------------------------------------------------
 // Route scanning
@@ -213,6 +217,259 @@ export interface MiddlewareInfo {
   hasRedirects: boolean;
   /** Whether the middleware modifies headers. */
   hasHeaders: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Safety module
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Prisma schema analysis
+// ---------------------------------------------------------------------------
+
+/** Parsed Prisma schema information. */
+export interface PrismaSchemaInfo {
+  /** All models found in the schema. */
+  models: PrismaModel[];
+  /** All enums found in the schema. */
+  enums: PrismaEnum[];
+  /** Absolute path to the schema.prisma file. */
+  filePath: string;
+}
+
+/** A single Prisma model. */
+export interface PrismaModel {
+  /** Model name (e.g. "User"). */
+  name: string;
+  /** Fields defined on the model. */
+  fields: PrismaField[];
+  /** Composite indexes from @@index directives. */
+  indexes: string[][];
+  /** Unique constraints from @@unique directives. */
+  uniqueConstraints: string[][];
+}
+
+/** A single field on a Prisma model. */
+export interface PrismaField {
+  /** Field name. */
+  name: string;
+  /** Field type (e.g. "String", "Int", "User"). */
+  type: string;
+  /** Whether the field is required (not optional). */
+  isRequired: boolean;
+  /** Whether the field is a list (e.g. Post[]). */
+  isList: boolean;
+  /** Whether the field is the primary key (@id). */
+  isId: boolean;
+  /** Whether the field has a @unique constraint. */
+  isUnique: boolean;
+  /** Whether the field has a @default value. */
+  hasDefault: boolean;
+  /** Whether the field is a relation. */
+  isRelation: boolean;
+}
+
+/** A Prisma enum definition. */
+export interface PrismaEnum {
+  /** Enum name. */
+  name: string;
+  /** Enum values. */
+  values: string[];
+}
+
+/** A database call detected in source code. */
+export interface DatabaseCall {
+  /** Model name (e.g. "user" from prisma.user.findMany). */
+  model: string;
+  /** Operation name (e.g. "findMany"). */
+  operation: string;
+  /** Fields referenced in where/select/include clauses. */
+  fields: string[];
+  /** File where the call was found. */
+  file: string;
+  /** Line number of the call. */
+  line: number;
+}
+
+/** An issue found during Prisma cross-reference analysis. */
+export interface PrismaIssue {
+  /** Type of Prisma issue. */
+  type: "nonexistent-model" | "nonexistent-field" | "missing-index";
+  /** Human-readable description. */
+  description: string;
+  /** Model name involved. */
+  model: string;
+  /** Field name involved, if applicable. */
+  field: string | null;
+  /** File where the issue was found. */
+  file: string;
+  /** Line number. */
+  line: number;
+}
+
+/** An issue found during migration drift detection. */
+export interface MigrationIssue {
+  /** Type of migration issue. */
+  type: "no-migrations" | "stale-migration" | "drift-suspected";
+  /** Human-readable description. */
+  description: string;
+}
+
+// ---------------------------------------------------------------------------
+// Server actions analysis
+// ---------------------------------------------------------------------------
+
+/** A Next.js Server Action detected in the codebase. */
+export interface ServerAction {
+  /** Function name. */
+  name: string;
+  /** Absolute file path. */
+  filePath: string;
+  /** Line number where the function is defined. */
+  line: number;
+  /** Whether the action uses Zod or similar validation. */
+  hasValidation: boolean;
+  /** Whether the action has try/catch error handling. */
+  hasErrorHandling: boolean;
+  /** Whether the action makes database calls. */
+  hasDatabaseCalls: boolean;
+  /** Whether the action has auth checks. */
+  hasAuth: boolean;
+  /** List of database call expressions. */
+  databaseCalls: string[];
+  /** True if 'use server' is at file level (all exports are actions). */
+  isFileLevel: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Type flow analysis
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Live testing
+// ---------------------------------------------------------------------------
+
+/** Options for the live endpoint tester. */
+export interface LiveTestOptions {
+  /** Base URL to test against (e.g., "http://localhost:3000"). */
+  baseUrl: string;
+  /** Per-request timeout in milliseconds (default 5000). */
+  timeout: number;
+  /** Whether to include auth headers if available. */
+  includeAuth?: boolean;
+  /** If true, show what would be tested without making actual HTTP calls. */
+  dryRun?: boolean;
+}
+
+/** Result of a single endpoint test. */
+export interface EndpointTestResult {
+  /** Full URL that was tested. */
+  url: string;
+  /** HTTP method used. */
+  method: string;
+  /** Response status code, or null if the request failed entirely. */
+  statusCode: number | null;
+  /** Time in milliseconds for the response. */
+  responseTimeMs: number;
+  /** Whether the test passed all checks. */
+  passed: boolean;
+  /** List of issues found during the test. */
+  issues: string[];
+}
+
+/** Aggregated result of all live tests. */
+export interface LiveTestResult {
+  /** Endpoints that were tested. */
+  tested: EndpointTestResult[];
+  /** Endpoints that were skipped (with reasons). */
+  skipped: string[];
+  /** Summary counts. */
+  summary: {
+    total: number;
+    passed: number;
+    failed: number;
+    errors: number;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// API graph
+// ---------------------------------------------------------------------------
+
+/** A queryable graph representation of the API surface. */
+export interface ApiGraph {
+  /** All nodes in the graph. */
+  nodes: ApiNode[];
+  /** All edges in the graph. */
+  edges: ApiEdge[];
+}
+
+/** A single node in the API graph. */
+export interface ApiNode {
+  /** Unique identifier (e.g., "route:GET /api/users"). */
+  id: string;
+  /** Node type. */
+  type: "route" | "model" | "frontend-component" | "middleware" | "server-action";
+  /** Human-readable name. */
+  name: string;
+  /** Arbitrary metadata associated with the node. */
+  metadata: Record<string, unknown>;
+}
+
+/** A directed edge between two nodes. */
+export interface ApiEdge {
+  /** Source node ID. */
+  from: string;
+  /** Target node ID. */
+  to: string;
+  /** Relationship type. */
+  type: "calls" | "reads" | "writes" | "protects" | "validates";
+}
+
+/** Result of querying the API graph. */
+export interface ApiQueryResult {
+  /** Matching nodes. */
+  nodes: ApiNode[];
+  /** Matching edges. */
+  edges: ApiEdge[];
+  /** Human-readable description of the query result. */
+  description: string;
+}
+
+// ---------------------------------------------------------------------------
+// Cross-project pattern tracking
+// ---------------------------------------------------------------------------
+
+/** Insight about a common pattern across projects. */
+export interface PatternInsight {
+  /** Normalized pattern identifier. */
+  pattern: string;
+  /** Total occurrences across all projects. */
+  occurrences: number;
+  /** Number of distinct projects where this pattern appeared. */
+  projects: number;
+  /** Framework this pattern is associated with. */
+  framework: string;
+  /** Human-readable description. */
+  description: string;
+}
+
+// ---------------------------------------------------------------------------
+// Type flow analysis
+// ---------------------------------------------------------------------------
+
+/** A mismatch between frontend property usage and backend response shape. */
+export interface TypeFlowIssue {
+  /** Frontend file where the property was accessed. */
+  frontendFile: string;
+  /** Line number of the access. */
+  frontendLine: number;
+  /** Backend route URL. */
+  backendRoute: string;
+  /** The property path the frontend expects. */
+  expectedProperty: string;
+  /** Human-readable description. */
+  description: string;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,9 +1,9 @@
 // =============================================================================
-// backend-max — Next.js route scanner
+// backend-max — Multi-framework route scanner
 // =============================================================================
 
 import { glob } from "glob";
-import type { RouteInfo, MethodInfo, ScanResult } from "../types.js";
+import type { RouteInfo, MethodInfo, Issue, ScanResult } from "../types.js";
 import {
   filePathToUrl,
   extractDynamicParams,
@@ -13,21 +13,117 @@ import {
   createProject,
   extractExportedMethods,
 } from "../analyzers/typescript.js";
+import { detectFramework } from "../analyzers/registry.js";
+import type { FrameworkAnalyzer } from "../analyzers/framework-interface.js";
 
 /**
- * Scans a Next.js project for all route handler files and extracts detailed
+ * Scans a project for all route handler files and extracts detailed
  * information about each exported HTTP method handler.
  *
  * The scanner:
- * 1. Locates the `app/` directory (supports both `app/` and `src/app/`)
- * 2. Finds all `route.ts` and `route.js` files
- * 3. Parses file paths into URL patterns (stripping route groups, preserving dynamic segments)
- * 4. Uses ts-morph to analyze each handler for validation, error handling, database calls, and auth
+ * 1. Auto-detects the framework via the analyzer registry
+ * 2. For Next.js: uses the legacy scanning path (app dir + route files)
+ * 3. For Express: delegates to the Express analyzer
+ * 4. Runs framework-specific checks via getFrameworkChecks()
  *
- * @param projectPath  Absolute path to the Next.js project root.
+ * @param projectPath  Absolute path to the project root.
  * @returns            A ScanResult containing all discovered routes and a summary.
  */
 export async function scanRoutes(projectPath: string): Promise<ScanResult> {
+  const analyzer = await detectFramework(projectPath);
+
+  // If an Express (or other non-Next.js) analyzer is detected, delegate fully
+  if (analyzer && analyzer.name !== "nextjs") {
+    return scanWithAnalyzer(projectPath, analyzer);
+  }
+
+  // Default: Next.js scanning path (preserved for backward compatibility)
+  return scanNextJSRoutes(projectPath);
+}
+
+/**
+ * Runs framework-specific checks from the detected analyzer.
+ *
+ * @param projectPath  Absolute path to the project root.
+ * @param routes       Routes already discovered by the scanner.
+ * @returns            Array of issues found by framework checks.
+ */
+export async function runFrameworkChecks(
+  projectPath: string,
+  routes: RouteInfo[],
+): Promise<Issue[]> {
+  const analyzer = await detectFramework(projectPath);
+  if (!analyzer) return [];
+
+  const checks = analyzer.getFrameworkChecks();
+  const issues: Issue[] = [];
+
+  for (const check of checks) {
+    try {
+      const checkIssues = await check.check(projectPath, routes);
+      issues.push(...checkIssues);
+    } catch {
+      // Individual check failure should not block others
+    }
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// Generic analyzer delegation
+// ---------------------------------------------------------------------------
+
+/**
+ * Scans routes using a non-Next.js FrameworkAnalyzer.
+ */
+async function scanWithAnalyzer(
+  projectPath: string,
+  analyzer: FrameworkAnalyzer,
+): Promise<ScanResult> {
+  const routes = await analyzer.scanRoutes(projectPath);
+
+  // Sort for deterministic output
+  routes.sort((a, b) => a.url.localeCompare(b.url));
+
+  const totalEndpoints = routes.reduce(
+    (sum, r) => sum + r.methods.length,
+    0,
+  );
+
+  const frameworksDetected = new Set<string>([analyzer.name]);
+
+  // Detect additional frameworks from handler analysis
+  for (const route of routes) {
+    for (const method of route.methods) {
+      if (method.hasDatabaseCalls) {
+        for (const call of method.databaseCalls) {
+          if (call.startsWith("prisma")) frameworksDetected.add("prisma");
+          if (call.startsWith("db.")) frameworksDetected.add("drizzle");
+        }
+      }
+      if (method.hasValidation) frameworksDetected.add("zod");
+    }
+  }
+
+  return {
+    routes,
+    summary: {
+      totalRoutes: routes.length,
+      totalEndpoints,
+      frameworksDetected: Array.from(frameworksDetected),
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Next.js scanning (legacy path — preserved for backward compatibility)
+// ---------------------------------------------------------------------------
+
+/**
+ * Scans a Next.js project for all route handler files.
+ */
+async function scanNextJSRoutes(projectPath: string): Promise<ScanResult> {
   const appDir = await findAppDir(projectPath);
 
   if (!appDir) {

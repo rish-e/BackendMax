@@ -3,8 +3,9 @@
 // =============================================================================
 
 import { join } from "node:path";
-import type { RouteInfo, MethodInfo, ScanResult } from "../types.js";
+import type { RouteInfo, MethodInfo, ScanResult, ApiGraph, ApiEdge } from "../types.js";
 import { scanRoutes } from "./route-scanner.js";
+import { buildApiGraph } from "./api-graph.js";
 import { ensureDir, writeJson, getTimestamp, relativePath } from "../utils/helpers.js";
 import { writeFile } from "node:fs/promises";
 
@@ -42,12 +43,14 @@ function groupByDomain(routes: RouteInfo[]): Map<string, RouteInfo[]> {
 }
 
 /**
- * Generates the Markdown section for a single route method.
+ * Generates the Markdown section for a single route method,
+ * optionally enriched with API graph data.
  */
 function methodSection(
   route: RouteInfo,
   method: MethodInfo,
   projectPath: string,
+  graph?: ApiGraph,
 ): string {
   const relFile = relativePath(projectPath, route.filePath);
   const dbCalls = method.databaseCalls.length > 0
@@ -72,6 +75,44 @@ function methodSection(
     lines.push(`- **Dynamic Params:** ${route.dynamicParams.join(", ")}`);
   }
 
+  // Enrich with graph data if available
+  if (graph) {
+    const routeNodeId = `route:${method.method} ${route.url}`;
+
+    // "Called by" — frontend components that call this endpoint
+    const callers = graph.edges
+      .filter((e) => e.type === "calls" && e.to === routeNodeId)
+      .map((e) => {
+        const node = graph.nodes.find((n) => n.id === e.from);
+        return node ? node.name : e.from;
+      });
+    if (callers.length > 0) {
+      lines.push(`- **Called by:** ${callers.map((c) => `\`${c}\``).join(", ")}`);
+    }
+
+    // "Writes to" — models this endpoint writes to
+    const writesTo = graph.edges
+      .filter((e) => e.type === "writes" && e.from === routeNodeId)
+      .map((e) => {
+        const node = graph.nodes.find((n) => n.id === e.to);
+        return node ? node.name : e.to;
+      });
+    if (writesTo.length > 0) {
+      lines.push(`- **Writes to:** ${writesTo.join(", ")}`);
+    }
+
+    // "Reads from" — models this endpoint reads from
+    const readsFrom = graph.edges
+      .filter((e) => e.type === "reads" && e.from === routeNodeId)
+      .map((e) => {
+        const node = graph.nodes.find((n) => n.id === e.to);
+        return node ? node.name : e.to;
+      });
+    if (readsFrom.length > 0) {
+      lines.push(`- **Reads from:** ${readsFrom.join(", ")}`);
+    }
+  }
+
   lines.push("");
   return lines.join("\n");
 }
@@ -94,6 +135,17 @@ export async function generateDocs(projectPath: string): Promise<string> {
   // Scan all routes
   const scanResult: ScanResult = await scanRoutes(projectPath);
   const { routes, summary } = scanResult;
+
+  // Build the API graph for enriched docs
+  let graph: ApiGraph | undefined;
+  try {
+    graph = await buildApiGraph(projectPath);
+    // Save graph to disk
+    const graphPath = join(projectPath, STATE_DIR, "api-graph.json");
+    await writeJson(graphPath, graph);
+  } catch {
+    // Graph building may fail — fall back to basic docs
+  }
 
   // Group by domain
   const grouped = groupByDomain(routes);
@@ -129,7 +181,7 @@ export async function generateDocs(projectPath: string): Promise<string> {
 
     for (const route of domainRoutes) {
       for (const method of route.methods) {
-        sections.push(methodSection(route, method, projectPath));
+        sections.push(methodSection(route, method, projectPath, graph));
       }
     }
 

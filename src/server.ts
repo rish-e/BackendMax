@@ -17,6 +17,8 @@ import { auditErrorHandling } from "./tools/error-auditor.js";
 import { scanEnvVars } from "./tools/env-scanner.js";
 import { auditSecurity } from "./tools/security-auditor.js";
 import { auditPerformance } from "./tools/performance-auditor.js";
+import { auditPrisma } from "./tools/prisma-auditor.js";
+import { auditServerActions } from "./tools/server-actions-auditor.js";
 import { generateDocs } from "./tools/doc-generator.js";
 import { updateLedger, getLedger } from "./tools/ledger-manager.js";
 import {
@@ -27,11 +29,15 @@ import {
 import { runFullDiagnosis } from "./tools/orchestrator.js";
 import { fixIssue } from "./tools/fix-engine.js";
 import { runSafetyChecks } from "./safety/index.js";
+import { runLiveTests } from "./tools/live-tester.js";
+import { buildApiGraph, queryApiGraph } from "./tools/api-graph.js";
+import { getCommonPatterns } from "./tools/pattern-tracker.js";
+import type { ApiGraph } from "./types.js";
 
 const server = new McpServer(
   {
     name: "backend-max",
-    version: "1.0.0",
+    version: "2.0.0",
   },
   {
     capabilities: { logging: {} },
@@ -66,6 +72,8 @@ server.tool(
         "env",
         "security",
         "performance",
+        "prisma",
+        "server-actions",
       ])
       .default("all")
       .describe("Focus area for the diagnosis (default: all)"),
@@ -353,6 +361,62 @@ server.tool(
   }
 );
 
+server.tool(
+  "audit_prisma",
+  "Audit Prisma schema and database usage. Parses schema.prisma, cross-references database calls against the schema to find nonexistent models/fields, suggests missing indexes, and checks for migration drift.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+  },
+  async ({ projectPath }) => {
+    try {
+      const result = await auditPrisma(projectPath);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Prisma audit failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "audit_server_actions",
+  "Audit Next.js Server Actions. Finds all 'use server' functions and checks for missing validation, error handling, auth checks, and unprotected database calls.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+  },
+  async ({ projectPath }) => {
+    try {
+      const result = await auditServerActions(projectPath);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Server actions audit failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
 // ─── Documentation & History ─────────────────────────────────────────
 
 server.tool(
@@ -476,6 +540,143 @@ server.tool(
           {
             type: "text",
             text: `Safety check failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Live Testing ────────────────────────────────────────────────────
+
+server.tool(
+  "live_test",
+  "Run live HTTP tests against discovered API endpoints. SAFETY: Only GET endpoints are tested. DELETE is never called. POST/PUT/PATCH are skipped (no safe payload generation). Only localhost URLs are accepted.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+    baseUrl: z
+      .string()
+      .describe('Base URL of the running server (e.g., "http://localhost:3000")'),
+    timeout: z
+      .number()
+      .default(5000)
+      .describe("Per-request timeout in milliseconds (default: 5000)"),
+    includeAuth: z
+      .boolean()
+      .default(false)
+      .describe("Whether to test endpoints that require authentication"),
+    dryRun: z
+      .boolean()
+      .default(false)
+      .describe("If true, show what would be tested without making HTTP calls"),
+  },
+  async ({ projectPath, baseUrl, timeout, includeAuth, dryRun }) => {
+    try {
+      const result = await runLiveTests(projectPath, {
+        baseUrl,
+        timeout,
+        includeAuth,
+        dryRun,
+      });
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Live test failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── API Graph ───────────────────────────────────────────────────────
+
+/** Cache for API graphs to avoid rebuilding on repeated queries. */
+const graphCache = new Map<string, ApiGraph>();
+
+server.tool(
+  "query_api",
+  'Query the API graph with natural language. Builds a graph of routes, models, frontend components, and middleware, then queries it. Examples: "unprotected routes", "routes that write to users", "unused models".',
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+    query: z
+      .string()
+      .describe('Natural language query (e.g., "unprotected routes", "routes that write to users")'),
+    rebuild: z
+      .boolean()
+      .default(false)
+      .describe("Force rebuild the API graph (default: use cache)"),
+  },
+  async ({ projectPath, query, rebuild }) => {
+    try {
+      let graph = graphCache.get(projectPath);
+      if (!graph || rebuild) {
+        graph = await buildApiGraph(projectPath);
+        graphCache.set(projectPath, graph);
+      }
+
+      const result = queryApiGraph(graph, query);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `API graph query failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Pattern Tracking ────────────────────────────────────────────────
+
+server.tool(
+  "get_patterns",
+  "Get common patterns across projects. Shows the most frequently encountered issues for a given framework. Data is stored locally only — never sent externally.",
+  {
+    framework: z
+      .string()
+      .default("all")
+      .describe('Framework to filter by (e.g., "nextjs", "express", or "all")'),
+  },
+  async ({ framework }) => {
+    try {
+      const patterns = await getCommonPatterns(framework);
+      if (patterns.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No patterns tracked yet. Patterns are collected automatically after each diagnosis (opt-in).",
+            },
+          ],
+        };
+      }
+      return {
+        content: [{ type: "text", text: JSON.stringify(patterns, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Pattern retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
           },
         ],
         isError: true,

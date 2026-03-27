@@ -6,7 +6,7 @@ import { glob } from "glob";
 import { join } from "node:path";
 import { Project, SyntaxKind, Node } from "ts-morph";
 import { createProject } from "./typescript.js";
-import type { FrontendCall } from "../types.js";
+import type { FrontendCall, TypeFlowIssue } from "../types.js";
 
 /**
  * Scans frontend code for fetch() and axios calls to API routes.
@@ -262,4 +262,177 @@ function looksLikeApiUrl(url: string): boolean {
     url.startsWith("/trpc") ||
     url.includes("/api/")
   );
+}
+
+// ---------------------------------------------------------------------------
+// Type flow analysis — trace how frontend code uses API responses
+// ---------------------------------------------------------------------------
+
+/**
+ * Traces how frontend code uses API response data to detect property
+ * access patterns that may not match backend response shapes.
+ *
+ * For each frontend API call:
+ * 1. Finds the variable that receives the fetch response (via `.json()`)
+ * 2. Finds all property accesses on that variable in the same scope
+ * 3. Collects these as "expected properties" for comparison with backend types
+ *
+ * @param projectPath    Absolute path to the project root.
+ * @param frontendCalls  Frontend calls previously detected by scanFrontendCalls.
+ * @returns              Array of TypeFlowIssue objects describing expected properties.
+ */
+export async function traceResponseUsage(
+  projectPath: string,
+  frontendCalls: FrontendCall[],
+): Promise<TypeFlowIssue[]> {
+  const issues: TypeFlowIssue[] = [];
+
+  if (frontendCalls.length === 0) {
+    return issues;
+  }
+
+  const project = createProject(projectPath);
+
+  // Group calls by file to avoid re-parsing
+  const callsByFile = new Map<string, FrontendCall[]>();
+  for (const call of frontendCalls) {
+    const existing = callsByFile.get(call.file) ?? [];
+    existing.push(call);
+    callsByFile.set(call.file, existing);
+  }
+
+  for (const [filePath, calls] of callsByFile) {
+    try {
+      let sourceFile;
+      try {
+        sourceFile = project.addSourceFileAtPath(filePath);
+      } catch {
+        continue;
+      }
+
+      for (const call of calls) {
+        try {
+          const callIssues = traceCallResponseUsage(
+            sourceFile,
+            call,
+            filePath,
+          );
+          issues.push(...callIssues);
+        } catch {
+          // Skip individual call analysis failures
+        }
+      }
+    } catch {
+      // Skip files that fail to parse
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Traces property accesses for a single frontend API call within a source file.
+ *
+ * Looks for patterns like:
+ * ```
+ * const res = await fetch("/api/users");
+ * const data = await res.json();
+ * data.users.map(...)      // "users" is an expected property
+ * data.totalCount           // "totalCount" is an expected property
+ * ```
+ */
+function traceCallResponseUsage(
+  sourceFile: ReturnType<Project["addSourceFileAtPath"]>,
+  call: FrontendCall,
+  filePath: string,
+): TypeFlowIssue[] {
+  const issues: TypeFlowIssue[] = [];
+
+  // Find all variable declarations in the file
+  const variableDeclarations = sourceFile.getDescendantsOfKind(
+    SyntaxKind.VariableDeclaration,
+  );
+
+  for (const varDecl of variableDeclarations) {
+    const initializer = varDecl.getInitializer();
+    if (!initializer) continue;
+
+    const initText = initializer.getText();
+
+    // Look for patterns like: await res.json(), await fetch(...).then(r => r.json())
+    // We need to find the variable that holds the parsed JSON response
+    const isJsonCall =
+      initText.includes(".json()") || initText.includes(".json<");
+
+    if (!isJsonCall) continue;
+
+    // Check if this .json() call is related to our fetch call
+    // by checking if the fetch URL appears nearby (within ~5 lines)
+    const varLine = varDecl.getStartLineNumber();
+    const lineDiff = Math.abs(varLine - call.line);
+    if (lineDiff > 10) continue;
+
+    const dataVarName = varDecl.getName();
+
+    // Find all property accesses on this variable
+    const propertyAccesses = findPropertyAccesses(
+      sourceFile,
+      dataVarName,
+      varLine,
+    );
+
+    for (const propPath of propertyAccesses) {
+      issues.push({
+        frontendFile: filePath,
+        frontendLine: call.line,
+        backendRoute: call.url,
+        expectedProperty: propPath,
+        description: `Frontend accesses "${propPath}" on response from ${call.method} ${call.url}`,
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Finds all property access paths on a given variable name within a source file.
+ *
+ * For example, if variableName is "data" and the code has:
+ *   data.users
+ *   data.users.map(...)
+ *   data.totalCount
+ *
+ * Returns: ["users", "totalCount"]
+ *
+ * Only returns top-level properties (not nested paths like "users.name").
+ */
+function findPropertyAccesses(
+  sourceFile: ReturnType<Project["addSourceFileAtPath"]>,
+  variableName: string,
+  afterLine: number,
+): string[] {
+  const properties = new Set<string>();
+
+  const propertyAccessNodes = sourceFile.getDescendantsOfKind(
+    SyntaxKind.PropertyAccessExpression,
+  );
+
+  for (const node of propertyAccessNodes) {
+    // Only look at accesses after the variable declaration
+    if (node.getStartLineNumber() < afterLine) continue;
+
+    const expression = node.getExpression();
+
+    // Direct access: data.property
+    if (Node.isIdentifier(expression) && expression.getText() === variableName) {
+      const propName = node.getName();
+      // Skip common non-data methods
+      if (!["then", "catch", "finally", "json", "text", "blob", "ok", "status", "headers"].includes(propName)) {
+        properties.add(propName);
+      }
+    }
+  }
+
+  return [...properties];
 }

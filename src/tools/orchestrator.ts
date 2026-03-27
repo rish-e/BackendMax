@@ -16,6 +16,8 @@ import { auditErrorHandling } from "./error-auditor.js";
 import { scanEnvVars } from "./env-scanner.js";
 import { auditSecurity } from "./security-auditor.js";
 import { auditPerformance } from "./performance-auditor.js";
+import { auditPrisma } from "./prisma-auditor.js";
+import { auditServerActions } from "./server-actions-auditor.js";
 import { generateDocs } from "./doc-generator.js";
 import { updateLedger } from "./ledger-manager.js";
 import { initContext, getContext } from "./context-manager.js";
@@ -27,6 +29,7 @@ import {
   getTimestamp,
 } from "../utils/helpers.js";
 import { runSafetyChecks, sanitizeForDisk, enforceLimits } from "../safety/index.js";
+import { trackPatterns, getProjectInsights } from "./pattern-tracker.js";
 
 /** Directory where backend-max stores its state. */
 const STATE_DIR = ".backend-doctor";
@@ -37,7 +40,7 @@ const REPORTS_DIR = "reports";
 // Focus area configuration
 // ---------------------------------------------------------------------------
 
-type FocusArea = "all" | "routes" | "contracts" | "errors" | "env" | "security" | "performance";
+type FocusArea = "all" | "routes" | "contracts" | "errors" | "env" | "security" | "performance" | "prisma" | "server-actions";
 
 /**
  * Determines which audits to run based on the focus parameter.
@@ -198,9 +201,33 @@ export async function runFullDiagnosis(
   // Performance audit
   if (shouldRun(focusArea, "performance")) {
     try {
-      const perfIssues = await auditPerformance(projectPath);
-      if (Array.isArray(perfIssues)) {
-        allIssues.push(...perfIssues);
+      const perfResult = await auditPerformance(projectPath);
+      if (perfResult && Array.isArray(perfResult.issues)) {
+        allIssues.push(...perfResult.issues);
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  // Prisma audit
+  if (shouldRun(focusArea, "prisma")) {
+    try {
+      const prismaResult = await auditPrisma(projectPath);
+      if (prismaResult && Array.isArray(prismaResult.issues)) {
+        allIssues.push(...prismaResult.issues);
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  // Server actions audit
+  if (shouldRun(focusArea, "server-actions")) {
+    try {
+      const saResult = await auditServerActions(projectPath);
+      if (saResult && Array.isArray(saResult.issues)) {
+        allIssues.push(...saResult.issues);
       }
     } catch {
       // Non-fatal
@@ -248,6 +275,17 @@ export async function runFullDiagnosis(
     summaryParts.push(
       `Contract analysis: ${contractResult.matchedCount} matched, ${contractResult.unmatchedCount} unmatched.`,
     );
+  }
+
+  // 7b. Track patterns and gather insights (opt-in, non-fatal)
+  try {
+    await trackPatterns(allIssues, context);
+    const insights = await getProjectInsights(allIssues);
+    if (insights.length > 0) {
+      summaryParts.push("Pattern insights: " + insights.join(" "));
+    }
+  } catch {
+    // Pattern tracking failure should not break the diagnosis
   }
 
   const report: DiagnosisReport = {

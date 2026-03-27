@@ -27,7 +27,7 @@
 <br />
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg?style=for-the-badge)]()
+[![Version](https://img.shields.io/badge/version-2.0.0-brightgreen.svg?style=for-the-badge)]()
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-339933.svg?style=for-the-badge&logo=node.js&logoColor=white)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)]()
 [![MCP](https://img.shields.io/badge/MCP-compatible-8B5CF6.svg?style=for-the-badge)]()
@@ -108,7 +108,7 @@ Existing tools catch syntax errors and type mismatches. **Backend Max catches th
 ### 1. Install
 
 ```bash
-git clone https://github.com/rishi-kolisetty/backend-max.git
+git clone https://github.com/rish-e/backend-max.git
 cd backend-max
 npm install
 npm run build
@@ -140,11 +140,45 @@ Open Claude Code in any project and type:
 
 That's it. Backend Max will analyze your project and return a full diagnostic report with health score, issues, and fix suggestions.
 
+### 4. CI/CD Mode (Optional)
+
+Run diagnostics from the command line or GitHub Actions:
+
+```bash
+# Basic diagnosis
+npx backend-max-cli diagnose ./my-project
+
+# CI mode — fail if health score drops below 75 or critical issues found
+npx backend-max-cli diagnose ./my-project --ci --min-score 75 --fail-on critical
+
+# Output formats
+npx backend-max-cli diagnose ./my-project --format markdown  # PR comments
+npx backend-max-cli diagnose ./my-project --format sarif     # GitHub Code Scanning
+npx backend-max-cli diagnose ./my-project --format json      # Raw data
+```
+
 <br />
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 
 ## 🔬 Features Deep Dive
+
+### 🆕 v2.0 — What's New
+
+| Feature | Description |
+|---------|-------------|
+| **🗄️ Prisma Schema Integration** | Parses your `.prisma` schema and cross-references every database call — catches nonexistent models, fields, and missing indexes |
+| **🔍 Deep Type Flow Analysis** | Traces frontend response variables to check property access against backend return types — catches `data.user.firstName` vs `data.user.first_name` |
+| **⚡ Server Actions** | Full audit of Next.js Server Actions (`'use server'`) — validation, auth, error handling, database patterns |
+| **🚀 CI/CD Mode** | CLI entry point with `--ci`, `--min-score`, `--fail-on`, and 4 output formats (text, markdown, JSON, SARIF) |
+| **🟢 Express.js Support** | Route scanning, middleware detection, Express-specific checks (error middleware, 404, helmet/CORS) |
+| **📄 Pages Router** | Next.js Pages Router API routes (`pages/api/`) fully supported |
+| **🧪 Live Testing** | Optional HTTP endpoint testing against running dev server (GET-only, safety-first) |
+| **🕸️ API Graph** | Queryable relationship graph — ask "unprotected routes" or "routes writing to users" |
+| **📊 Pattern Learning** | Local cross-project pattern tracking — identifies the most common issues across your projects |
+| **📋 SARIF Output** | GitHub Code Scanning integration via SARIF format |
+
+<br />
 
 ### 🔗 Cross-Boundary Contract Verification
 

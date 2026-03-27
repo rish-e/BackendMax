@@ -5,7 +5,8 @@
 import { readFile } from "node:fs/promises";
 import { join, relative, sep, posix } from "node:path";
 import { glob } from "glob";
-import type { MiddlewareInfo } from "../types.js";
+import type { MiddlewareInfo, RouteInfo } from "../types.js";
+import type { FrameworkAnalyzer, FrameworkCheck } from "./framework-interface.js";
 
 /**
  * Converts a route.ts / route.js file path to a URL pattern.
@@ -218,4 +219,50 @@ export async function findAppDir(
   }
 
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// FrameworkAnalyzer adapter
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a FrameworkAnalyzer that wraps the existing Next.js analysis
+ * utilities. The heavy lifting (ts-morph parsing, route extraction) is
+ * delegated to the route-scanner; this adapter only handles detection and
+ * provides the interface contract.
+ *
+ * @returns A FrameworkAnalyzer for Next.js projects.
+ */
+export function createNextJSAnalyzer(): FrameworkAnalyzer {
+  return {
+    name: "nextjs",
+
+    async detect(projectPath: string): Promise<boolean> {
+      try {
+        const raw = await readFile(
+          join(projectPath, "package.json"),
+          "utf-8",
+        );
+        const pkg = JSON.parse(raw) as Record<string, unknown>;
+        const deps = (pkg.dependencies ?? {}) as Record<string, string>;
+        const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
+        return "next" in deps || "next" in devDeps;
+      } catch {
+        return false;
+      }
+    },
+
+    async scanRoutes(projectPath: string): Promise<RouteInfo[]> {
+      // Import dynamically to avoid circular dependency
+      const { scanRoutes } = await import("../tools/route-scanner.js");
+      const result = await scanRoutes(projectPath);
+      return result.routes;
+    },
+
+    getFrameworkChecks(): FrameworkCheck[] {
+      // Next.js-specific checks are handled by the existing auditors;
+      // return an empty array here — the orchestrator already calls them.
+      return [];
+    },
+  };
 }

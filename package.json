@@ -1,11 +1,12 @@
 {
   "name": "backend-max",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "The AI-powered backend diagnostic MCP that understands what you're building and makes sure it actually works.",
   "type": "module",
   "main": "dist/server.js",
   "bin": {
-    "backend-max": "dist/server.js"
+    "backend-max": "dist/server.js",
+    "backend-max-cli": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -13,7 +14,8 @@
     "start": "node dist/server.js",
     "lint": "eslint src/",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "diagnose": "node dist/cli.js diagnose"
   },
   "keywords": [
     "mcp",

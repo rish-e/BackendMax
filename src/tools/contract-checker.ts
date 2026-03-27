@@ -10,9 +10,10 @@ import type {
   ContractMismatch,
   RouteInfo,
   FrontendCall,
+  TypeFlowIssue,
 } from "../types.js";
 import { scanRoutes } from "./route-scanner.js";
-import { scanFrontendCalls } from "../analyzers/frontend.js";
+import { scanFrontendCalls, traceResponseUsage } from "../analyzers/frontend.js";
 
 // ---------------------------------------------------------------------------
 // URL normalisation helpers
@@ -170,6 +171,32 @@ export async function checkContracts(
         });
       }
     }
+  }
+
+  // --- Step 4: type flow analysis -------------------------------------------
+
+  try {
+    const typeFlowIssues = await traceResponseUsage(projectPath, frontendCalls);
+    for (const tfi of typeFlowIssues) {
+      // Find the matching route for this type flow issue
+      const normalizedUrl = normalizeUrl(tfi.backendRoute);
+      const matchingRoute = findMatchingRoute(normalizedUrl, routes);
+
+      mismatches.push({
+        frontendCall: {
+          url: tfi.backendRoute,
+          method: "GET",
+          file: tfi.frontendFile,
+          line: tfi.frontendLine,
+          expectedType: tfi.expectedProperty,
+        },
+        closestRoute: matchingRoute,
+        reason: `Type flow: ${tfi.description}`,
+        severity: "info",
+      });
+    }
+  } catch {
+    // Type flow analysis failure is non-fatal
   }
 
   return {
