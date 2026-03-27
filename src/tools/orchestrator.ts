@@ -26,6 +26,7 @@ import {
   calculateHealthScore,
   getTimestamp,
 } from "../utils/helpers.js";
+import { runSafetyChecks, sanitizeForDisk, enforceLimits } from "../safety/index.js";
 
 /** Directory where backend-max stores its state. */
 const STATE_DIR = ".backend-doctor";
@@ -72,6 +73,29 @@ export async function runFullDiagnosis(
 ): Promise<DiagnosisReport> {
   const focusArea = (focus || "all") as FocusArea;
   const timestamp = getTimestamp();
+
+  // 0. Run safety checks — fail fast if path is invalid
+  const safetyResult = await runSafetyChecks(projectPath);
+  if (!safetyResult.passed) {
+    return {
+      timestamp,
+      healthScore: 0,
+      issues: [],
+      summary: `Safety check failed: ${safetyResult.pathValidation.reason ?? "Unknown reason"}`,
+      routeCount: 0,
+      endpointCount: 0,
+      contractResult: null,
+      context: {
+        name: "unknown",
+        type: "unknown",
+        framework: "unknown",
+        database: null,
+        auth: null,
+        domains: [],
+        notes: [`Safety check blocked this scan: ${safetyResult.pathValidation.reason ?? "Unknown"}`],
+      },
+    };
+  }
 
   // 1. Ensure context exists
   let context: ProjectContext;
@@ -237,12 +261,13 @@ export async function runFullDiagnosis(
     context,
   };
 
-  // 8. Save the report
+  // 8. Save the report (sanitized for disk)
   try {
     const reportsDir = join(projectPath, STATE_DIR, REPORTS_DIR);
     await ensureDir(reportsDir);
     const safeTimestamp = timestamp.replace(/[:.]/g, "-");
-    await writeJson(join(reportsDir, `${safeTimestamp}.json`), report);
+    const sanitizedReport = sanitizeForDisk(report);
+    await writeJson(join(reportsDir, `${safeTimestamp}.json`), sanitizedReport);
   } catch {
     // Non-fatal — report is still returned
   }

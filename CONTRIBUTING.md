@@ -83,6 +83,16 @@ export const myAnalyzer: Analyzer = {
    - Any relevant issue numbers
 5. Wait for review — we aim to respond within 48 hours
 
+## 🛡️ Safety Guidelines
+
+All contributions must respect the safety architecture. These rules are non-negotiable:
+
+- **All new analyzers must route file access through the Path Guardian.** Never use raw `fs.readFile` or glob directly — use the safe file access APIs that validate paths against the project boundary and blocked directory list.
+- **All new output must pass through the Output Sanitizer before disk/MCP output.** Any data that gets written to `.backend-doctor/` or returned via MCP must be sanitized first to strip secrets.
+- **Never read env var values** — use `sanitizeEnvContent()` to process environment files. Only variable names should be extracted; values must be discarded at read time.
+- **Never write to files outside the project boundary** without an `isWriteSafe()` check. The fix engine enforces this, and any new write paths must do the same.
+- **When adding new secret patterns**, add them to `SECRET_PATTERNS` in `src/safety/sanitizer.ts`. Each pattern needs a name, regex, and replacement mask. Add corresponding tests.
+
 ## 💬 Questions?
 
 Open a [GitHub Discussion](https://github.com/rishi-kolisetty/backend-max/discussions) or reach out in an issue. We're happy to help!

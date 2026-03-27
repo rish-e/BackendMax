@@ -299,6 +299,7 @@ All tools are exposed via MCP and available directly in Claude Code:
 | `get_health_score` | Calculate and return the composite health score |
 | `get_issue_history` | Retrieve the full issue ledger with lifecycle status |
 | `diagnose` | Run the full diagnostic pipeline (understand → verify → audit → score) |
+| `run_safety_check` | Validate project safety constraints (path traversal, scope limits, sensitive dirs) before diagnosis |
 
 ### Tool Usage Examples
 
@@ -431,6 +432,49 @@ Create a `backend-max.config.json` in your project root to customize behavior:
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 
+## 🛡️ Safety & Security
+
+Backend Max is built with a **safety-first philosophy**. Every operation — from file scanning to report generation — passes through multiple safety layers. Your code is never executed, your secrets are never stored, and all output is sanitized before it touches disk. Backend Max is designed so that even in the worst case, it cannot leak sensitive data or damage your project.
+
+### Safety Systems
+
+| System | What It Does | Default |
+|--------|-------------|---------|
+| **Path Guardian** | Validates project paths, blocks sensitive directories (.ssh, .aws, .gnupg), prevents path traversal attacks | Always on |
+| **Output Sanitizer** | Detects and redacts secrets in reports — AWS keys, GitHub tokens, Stripe keys, JWTs, connection strings, private keys, Slack tokens, and 12+ more patterns | Always on |
+| **Scope Limiter** | Caps file count (5,000), file size (1MB), scan depth (15 levels). Prevents memory exhaustion on large monorepos | Configurable |
+| **Auto-Gitignore** | Automatically adds `.backend-doctor/` to `.gitignore` on first run. Prevents diagnostic data from being committed | On by default |
+| **Report Pruning** | Auto-deletes diagnosis reports older than 30 days | Configurable |
+| **Env Value Stripping** | Environment variable VALUES are never read or stored — only variable NAMES. Impossible to leak secrets through reports | Always on |
+| **Write Protection** | Fix engine validates every write target: must be a source file, must be in project, must not be generated/config/lock files | Always on |
+
+### Security Guarantees
+
+- ✅ Backend Max NEVER reads environment variable values — only names
+- ✅ Backend Max NEVER executes your code — pure static analysis
+- ✅ Backend Max NEVER sends data externally — everything stays local
+- ✅ All diagnostic output is scrubbed for 15+ secret patterns before writing to disk
+- ✅ `.backend-doctor/` is auto-gitignored to prevent accidental commits
+- ✅ File writes (fix engine) are sandboxed to source files within the project only
+
+### Configuration
+
+Safety limits can be tuned via `backend-max.config.json`:
+
+```json
+{
+  "maxFiles": 5000,
+  "maxFileSizeBytes": 1048576,
+  "maxScanDepth": 15,
+  "reportRetentionDays": 30,
+  "autoGitignore": true
+}
+```
+
+<br />
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+
 ## 🗺️ Roadmap
 
 ### Phase 1 — Foundation ✅
@@ -446,6 +490,7 @@ Create a `backend-max.config.json` in your project root to customize behavior:
 
 ### Phase 2 — Expansion 🚧
 
+- [x] Safety & sandboxing
 - [ ] Express.js support
 - [ ] FastAPI (Python) support
 - [ ] Plugin architecture for custom analyzers

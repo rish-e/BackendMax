@@ -10,6 +10,7 @@ import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { glob } from "glob";
 import type { Issue, IssueCategory, Severity } from "../types.js";
+import { sanitizeEnvContent } from "../safety/path-guardian.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -157,7 +158,9 @@ export async function scanEnvVars(projectPath: string): Promise<{
       const envPath = join(projectPath, envFileName);
       let content: string;
       try {
-        content = await readFile(envPath, "utf-8");
+        const rawContent = await readFile(envPath, "utf-8");
+        // Sanitize env content — strip values, keep only variable names
+        content = sanitizeEnvContent(rawContent);
       } catch {
         continue; // file doesn't exist
       }

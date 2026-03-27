@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-03-27
+
+### Added
+- **Safety Module** — Complete security subsystem protecting all operations
+  - Path Guardian: validates project paths, blocks sensitive directories, prevents path traversal
+  - Output Sanitizer: detects and redacts 15+ secret patterns (AWS, GitHub, Stripe, JWT, connection strings, etc.)
+  - Scope Limiter: enforces file count, size, and depth limits to prevent resource exhaustion
+  - Auto-Gitignore: automatically protects `.backend-doctor/` from git commits
+  - Report Pruning: auto-deletes old diagnosis reports based on retention policy
+- New MCP tool: `run_safety_check` — validate project safety before diagnosis
+- Environment variable values are now stripped at read time — only names are processed
+
+### Changed
+- Orchestrator now runs safety checks before every diagnosis
+- Env scanner uses sanitized content — values never touch memory
+- All reports are sanitized through the Output Sanitizer before disk write
+
+### Security
+- 15+ secret pattern detectors (AWS keys, GitHub tokens, Stripe keys, JWTs, private keys, connection strings, Slack tokens, SendGrid keys, Twilio keys, and more)
+- Path traversal prevention with symlink resolution
+- Blocked sensitive directories: .ssh, .aws, .gnupg, .kube, system paths
+- Write operations sandboxed to source files within project boundary
+
 ## [1.0.0] — 2026-03-27
 
 ### Added

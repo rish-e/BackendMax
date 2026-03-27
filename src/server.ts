@@ -26,6 +26,7 @@ import {
 } from "./tools/context-manager.js";
 import { runFullDiagnosis } from "./tools/orchestrator.js";
 import { fixIssue } from "./tools/fix-engine.js";
+import { runSafetyChecks } from "./safety/index.js";
 
 const server = new McpServer(
   {
@@ -445,6 +446,36 @@ server.tool(
           {
             type: "text",
             text: `Fix failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Safety ──────────────────────────────────────────────────────────
+
+server.tool(
+  "run_safety_check",
+  "Run safety validation on a project path. Validates the path is safe to scan, ensures .backend-doctor/ is in .gitignore, and prunes old reports. Call this before any diagnosis to verify the project is safe to analyze.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+  },
+  async ({ projectPath }) => {
+    try {
+      const result = await runSafetyChecks(projectPath);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Safety check failed: ${error instanceof Error ? error.message : String(error)}`,
           },
         ],
         isError: true,
