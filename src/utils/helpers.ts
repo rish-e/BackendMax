@@ -59,13 +59,20 @@ export async function writeJson(filePath: string, data: unknown): Promise<void> 
 export function generateIssueId(category: string, file: string, detail: string): string {
   const prefixMap: Record<string, string> = {
     contract: "CTR",
+    "contract-type-mismatch": "CTM",
     "error-handling": "ERR",
     validation: "VAL",
     env: "ENV",
     security: "SEC",
     performance: "PRF",
     nextjs: "NXT",
+    express: "EXP",
     auth: "AUT",
+    prisma: "PRS",
+    "server-actions": "SAC",
+    trpc: "TPC",
+    graphql: "GQL",
+    dependency: "DEP",
   };
 
   const prefix = prefixMap[category] ?? category.slice(0, 3).toUpperCase();

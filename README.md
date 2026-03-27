@@ -27,7 +27,7 @@
 <br />
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.0-brightgreen.svg?style=for-the-badge)]()
+[![Version](https://img.shields.io/badge/version-2.1.0-brightgreen.svg?style=for-the-badge)]()
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-339933.svg?style=for-the-badge&logo=node.js&logoColor=white)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)]()
 [![MCP](https://img.shields.io/badge/MCP-compatible-8B5CF6.svg?style=for-the-badge)]()
@@ -163,7 +163,17 @@ npx backend-max-cli diagnose ./my-project --format json      # Raw data
 
 ## 🔬 Features Deep Dive
 
-### 🆕 v2.0 — What's New
+### 🆕 v2.1 — Tier 1 Feature Drop
+
+| Feature | Description |
+|---------|-------------|
+| **🔧 Auto-Fix Engine** | Generates real unified diff patches for common issues — try/catch wrapping, Zod validation, auth guards, pagination. Apply with `git apply` |
+| **👁️ Watch Mode** | Incremental analysis — shows new issues, fixed issues, and health score delta since last run. No full re-scan needed |
+| **🔀 tRPC Support** | Full router analysis — procedures, input validation, protected/public, queries vs mutations. 3 tRPC-specific checks |
+| **🕸️ GraphQL Analysis** | Resolver scanning for Apollo, Yoga, Mercurius, type-graphql, NestJS. N+1 detection, auth checks, input validation |
+| **📦 Dependency Scanner** | Built-in vulnerability database (12+ packages), deprecated package detection, lock file checks, npm audit integration |
+
+### v2.0 Features
 
 | Feature | Description |
 |---------|-------------|
@@ -326,14 +336,27 @@ All tools are exposed via MCP and available directly in Claude Code:
 
 | Tool | Description |
 |:---|:---|
-| `understand_project` | Analyze project structure, identify domains, frameworks, and architecture |
-| `verify_contracts` | Cross-reference frontend API calls against backend routes |
-| `run_audit` | Execute all 6 audit engines and return categorized issues |
-| `generate_docs` | Auto-generate API documentation from route handlers |
-| `get_health_score` | Calculate and return the composite health score |
-| `get_issue_history` | Retrieve the full issue ledger with lifecycle status |
-| `diagnose` | Run the full diagnostic pipeline (understand → verify → audit → score) |
-| `run_safety_check` | Validate project safety constraints (path traversal, scope limits, sensitive dirs) before diagnosis |
+| `run_diagnosis` | Full diagnostic pipeline — scans routes, checks contracts, runs all audits, generates docs, calculates health score |
+| `watch_diagnosis` | Incremental analysis — compares against last report, shows new/fixed issues and health delta |
+| `check_changes` | Quick check — shows changed files since last diagnosis without re-running analysis |
+| `init_context` | Analyze project structure, identify domains, frameworks, and architecture |
+| `check_contracts` | Cross-reference frontend API calls against backend routes |
+| `scan_routes` | Discover all API routes/endpoints across all supported frameworks |
+| `audit_errors` | Check error handling — try/catch coverage, consistent error formats |
+| `audit_env` | Verify environment variables — missing refs, prefix misuse |
+| `audit_security` | Security scan — auth gaps, CORS, injection patterns |
+| `audit_performance` | Performance anti-patterns — N+1 queries, unbounded queries, missing pagination |
+| `audit_prisma` | Prisma schema cross-referencing — nonexistent models/fields, missing indexes |
+| `audit_server_actions` | Next.js Server Actions audit — validation, auth, error handling |
+| `scan_dependencies` | Dependency vulnerability scanner — known CVEs, deprecated packages, lock file checks |
+| `fix_issue` | Generate a unified diff patch for a specific issue |
+| `fix_all_issues` | Batch-generate patches for all open issues |
+| `get_api_docs` | Auto-generated living API documentation |
+| `get_ledger` | Full issue lifecycle ledger — filter by status, severity, category |
+| `live_test` | Optional HTTP endpoint testing (GET-only, localhost-only, safety-first) |
+| `query_api` | Query the API relationship graph — "unprotected routes", "routes writing to users" |
+| `get_patterns` | Cross-project pattern insights — most common issues by framework |
+| `run_safety_check` | Validate project safety constraints before diagnosis |
 
 ### Tool Usage Examples
 
@@ -522,29 +545,36 @@ Safety limits can be tuned via `backend-max.config.json`:
 - [x] Issue lifecycle tracking
 - [x] `/doctor` slash command
 
-### Phase 2 — Expansion 🚧
+### Phase 2 — Expansion ✅
 
 - [x] Safety & sandboxing
-- [ ] Express.js support
-- [ ] FastAPI (Python) support
-- [ ] Plugin architecture for custom analyzers
-- [ ] Watch mode (re-diagnose on file change)
-- [ ] CI/CD integration (GitHub Actions)
+- [x] Express.js support
+- [x] CI/CD integration (GitHub Actions via SARIF)
+- [x] Watch mode / incremental analysis
+- [x] Auto-fix engine with code patches
+- [x] tRPC support
+- [x] GraphQL resolver analysis
+- [x] Dependency vulnerability scanning
 
-### Phase 3 — Intelligence 🔮
+### Phase 3 — Intelligence 🚧
 
-- [ ] Auto-fix suggestions with code patches
-- [ ] Dependency vulnerability correlation
+- [ ] Fastify + Hono framework support
+- [ ] Multi-layer type tracing (frontend → route → service → DB)
 - [ ] API versioning analysis
-- [ ] Rate limiting & quota detection
+- [ ] Rate limiting & caching audit
+- [ ] Middleware chain visualization
+- [ ] OpenAPI/Swagger spec generation
+- [ ] Dead code detection (unused routes/exports)
+- [ ] Test coverage mapping
+
+### Phase 4 — Ecosystem 🔮
+
+- [ ] VS Code extension — inline diagnostics
+- [ ] Monorepo support (Turborepo/Nx)
+- [ ] Database query complexity analyzer
+- [ ] API changelog between commits
+- [ ] Webhook/event auditor
 - [ ] Multi-service contract verification (microservices)
-
-### Phase 4 — Team Features 🏢
-
-- [ ] Team dashboard (web UI)
-- [ ] Slack/Discord notifications
-- [ ] PR-blocking health score thresholds
-- [ ] Historical trend analytics
 
 <br />
 

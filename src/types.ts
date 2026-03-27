@@ -21,7 +21,10 @@ export type IssueCategory =
   | "express"
   | "auth"
   | "prisma"
-  | "server-actions";
+  | "server-actions"
+  | "trpc"
+  | "graphql"
+  | "dependency";
 
 // ---------------------------------------------------------------------------
 // Route scanning

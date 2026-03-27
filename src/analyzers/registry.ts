@@ -5,6 +5,8 @@
 import type { FrameworkAnalyzer } from "./framework-interface.js";
 import { createNextJSAnalyzer } from "./nextjs.js";
 import { createExpressAnalyzer } from "./express.js";
+import { createTRPCAnalyzer } from "./trpc.js";
+import { createGraphQLAnalyzer } from "./graphql.js";
 
 // ---------------------------------------------------------------------------
 // Registry
@@ -13,6 +15,8 @@ import { createExpressAnalyzer } from "./express.js";
 /** All registered framework analyzers, ordered by detection priority. */
 const analyzers: FrameworkAnalyzer[] = [
   createNextJSAnalyzer(),
+  createTRPCAnalyzer(),
+  createGraphQLAnalyzer(),
   createExpressAnalyzer(),
 ];
 

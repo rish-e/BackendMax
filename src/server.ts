@@ -32,12 +32,15 @@ import { runSafetyChecks } from "./safety/index.js";
 import { runLiveTests } from "./tools/live-tester.js";
 import { buildApiGraph, queryApiGraph } from "./tools/api-graph.js";
 import { getCommonPatterns } from "./tools/pattern-tracker.js";
+import { fixAllIssues } from "./tools/fix-engine.js";
+import { scanDependencies } from "./tools/dep-scanner.js";
+import { runIncrementalAnalysis, getChangesSummary } from "./tools/watcher.js";
 import type { ApiGraph } from "./types.js";
 
 const server = new McpServer(
   {
     name: "backend-max",
-    version: "2.0.0",
+    version: "2.1.0",
   },
   {
     capabilities: { logging: {} },
@@ -74,6 +77,7 @@ server.tool(
         "performance",
         "prisma",
         "server-actions",
+        "dependencies",
       ])
       .default("all")
       .describe("Focus area for the diagnosis (default: all)"),
@@ -677,6 +681,149 @@ server.tool(
           {
             type: "text",
             text: `Pattern retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Fix All Issues ─────────────────────────────────────────────
+
+server.tool(
+  "fix_all_issues",
+  "Generate code patches for all open issues in the ledger. Returns unified diffs that can be applied with git apply. Does NOT auto-apply — returns patches for review.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+  },
+  async ({ projectPath }) => {
+    try {
+      const results = await fixAllIssues(projectPath);
+      return {
+        content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Fix all failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Watch Mode / Incremental Analysis ──────────────────────────
+
+server.tool(
+  "watch_diagnosis",
+  "Run an incremental diagnosis — compares current state against the last saved report. Highlights new issues, fixed issues, and health score changes. Much faster than a full re-run for iterative development.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+    focus: z
+      .enum([
+        "all",
+        "routes",
+        "contracts",
+        "errors",
+        "env",
+        "security",
+        "performance",
+        "prisma",
+        "server-actions",
+        "dependencies",
+      ])
+      .default("all")
+      .describe("Focus area for the diagnosis (default: all)"),
+  },
+  async ({ projectPath, focus }) => {
+    try {
+      const result = await runIncrementalAnalysis(projectPath, focus);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Watch diagnosis failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "check_changes",
+  "Quick check — shows which files changed since the last diagnosis and how long ago it ran. Does NOT re-run analysis. Use this to decide if a full re-run is needed.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+  },
+  async ({ projectPath }) => {
+    try {
+      const result = await getChangesSummary(projectPath);
+      if (!result) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No previous diagnosis found. Run run_diagnosis first to establish a baseline.",
+            },
+          ],
+        };
+      }
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Change check failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Dependency Scanner ─────────────────────────────────────────
+
+server.tool(
+  "scan_dependencies",
+  "Scan project dependencies for known vulnerabilities, deprecated packages, and security issues. Checks package.json against a built-in vulnerability database and optionally runs npm audit. No network required for basic checks.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+  },
+  async ({ projectPath }) => {
+    try {
+      const result = await scanDependencies(projectPath);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Dependency scan failed: ${error instanceof Error ? error.message : String(error)}`,
           },
         ],
         isError: true,

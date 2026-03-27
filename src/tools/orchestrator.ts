@@ -18,6 +18,7 @@ import { auditSecurity } from "./security-auditor.js";
 import { auditPerformance } from "./performance-auditor.js";
 import { auditPrisma } from "./prisma-auditor.js";
 import { auditServerActions } from "./server-actions-auditor.js";
+import { scanDependencies } from "./dep-scanner.js";
 import { generateDocs } from "./doc-generator.js";
 import { updateLedger } from "./ledger-manager.js";
 import { initContext, getContext } from "./context-manager.js";
@@ -40,7 +41,7 @@ const REPORTS_DIR = "reports";
 // Focus area configuration
 // ---------------------------------------------------------------------------
 
-type FocusArea = "all" | "routes" | "contracts" | "errors" | "env" | "security" | "performance" | "prisma" | "server-actions";
+type FocusArea = "all" | "routes" | "contracts" | "errors" | "env" | "security" | "performance" | "prisma" | "server-actions" | "dependencies";
 
 /**
  * Determines which audits to run based on the focus parameter.
@@ -228,6 +229,18 @@ export async function runFullDiagnosis(
       const saResult = await auditServerActions(projectPath);
       if (saResult && Array.isArray(saResult.issues)) {
         allIssues.push(...saResult.issues);
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  // Dependency vulnerability scan
+  if (shouldRun(focusArea, "dependencies")) {
+    try {
+      const depResult = await scanDependencies(projectPath);
+      if (depResult && Array.isArray(depResult.issues)) {
+        allIssues.push(...depResult.issues);
       }
     } catch {
       // Non-fatal
