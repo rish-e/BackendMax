@@ -966,6 +966,138 @@ server.tool(
   }
 );
 
+// ─── Prompts (slash commands for MCP clients) ──────────────────────
+
+server.prompt(
+  "backendmax",
+  "Run Backend Max — full deep-dive backend diagnosis. Analyzes routes, contracts, security, performance, middleware, rate limiting, type tracing, and more. Pass your request as the argument.",
+  { request: z.string().optional().describe("What you want Backend Max to do (e.g., 'run a full diagnosis', 'check security', 'fix all issues')") },
+  ({ request }) => ({
+    messages: [
+      {
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: BACKENDMAX_PROMPT.replace("$REQUEST", request || "Run a full diagnosis on my project and tell me what needs fixing"),
+        },
+      },
+    ],
+  })
+);
+
+server.prompt(
+  "backend-security",
+  "Deep security audit — auth gaps, rate limiting, CORS, injection patterns, middleware ordering, unprotected endpoints.",
+  () => ({
+    messages: [
+      {
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: SECURITY_PROMPT,
+        },
+      },
+    ],
+  })
+);
+
+server.prompt(
+  "backend-fix",
+  "Generate code patches for all open backend issues. Returns unified diffs you can review and apply.",
+  () => ({
+    messages: [
+      {
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: FIX_PROMPT,
+        },
+      },
+    ],
+  })
+);
+
+// ─── Prompt templates ───────────────────────────────────────────────
+
+const BACKENDMAX_PROMPT = `You have access to the Backend Max MCP server with 27 backend diagnostic tools. The user's request is:
+
+> $REQUEST
+
+## Instructions
+
+Based on what the user asked, follow the right approach:
+
+### Full Diagnosis (default if unclear)
+1. Call \`init_context\` with the project path to understand the project
+2. Call \`run_diagnosis\` with \`focus: "all"\` to run every audit engine
+3. Present results clearly:
+   - Health score with visual indicator (90+: excellent, 80+: good, 60+: needs work, <60: critical)
+   - Critical issues first — these need immediate attention
+   - Warnings grouped by category
+   - Info items as suggestions
+4. For each critical/warning issue, explain WHY it matters and suggest the fix
+
+### Targeted Analysis
+Route the request to the right tool:
+- Routes/endpoints → scan_routes
+- Frontend↔backend contracts → check_contracts
+- Error handling → audit_errors
+- Environment variables → audit_env
+- Security → audit_security
+- Performance → audit_performance
+- Prisma/database → audit_prisma
+- Server actions → audit_server_actions
+- Dependencies/vulnerabilities → scan_dependencies
+- Rate limiting & caching → audit_rate_limiting
+- API versioning → audit_versioning
+- Middleware chains → visualize_middleware
+- Type tracing (frontend→DB) → trace_types
+- API documentation → get_api_docs
+- Issue history → get_ledger
+- What changed → check_changes / watch_diagnosis
+
+### Fixing Issues
+1. Run diagnosis first if no recent results
+2. Use fix_issue or fix_all_issues to generate patches
+3. Show the generated patches and explain each fix
+4. Ask if the user wants you to apply them
+
+## Project Path
+Use the current working directory. If it has a package.json, that's the project root.
+
+## Response Format
+**Project:** {name} ({framework})
+**Health Score:** {score}/100
+
+Then present findings by severity with actionable explanations — exact files, line numbers, and what to change.`;
+
+const SECURITY_PROMPT = `Run a deep security audit on my backend project using Backend Max.
+
+1. Call \`init_context\` to understand the project
+2. Run these tools in sequence and combine the results:
+   - \`audit_security\` — auth gaps, CORS, injection patterns, exposed secrets
+   - \`audit_rate_limiting\` — rate limiting coverage, unprotected auth endpoints, caching gaps
+   - \`visualize_middleware\` — middleware ordering issues, unprotected mutation endpoints
+   - \`scan_dependencies\` — known vulnerabilities, deprecated packages
+3. Present a unified security report:
+   - Critical vulnerabilities first
+   - Auth coverage analysis (which endpoints are protected, which aren't)
+   - Rate limiting coverage
+   - Middleware chain issues
+   - Dependency risks
+4. For each finding, explain the attack vector and how to fix it`;
+
+const FIX_PROMPT = `Generate code fixes for all open issues in my backend project.
+
+1. Call \`init_context\` to understand the project
+2. Call \`run_diagnosis\` with focus "all" to find all current issues
+3. Call \`fix_all_issues\` to generate unified diff patches
+4. Present each fix:
+   - What issue it solves
+   - The diff/patch
+   - Why this fix is correct
+5. Ask if I want you to apply the patches`;
+
 // ─── Start Server ────────────────────────────────────────────────────
 
 async function main() {
