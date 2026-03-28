@@ -105,7 +105,7 @@ export async function runFullDiagnosis(
   let context: ProjectContext;
   try {
     context = await getContext(projectPath);
-  } catch {
+  } catch { /* No existing context — initialize fresh */
     context = await initContext(projectPath);
   }
 
@@ -158,9 +158,7 @@ export async function runFullDiagnosis(
           fixedAt: null,
         });
       }
-    } catch {
-      // Contract check may fail if no frontend code exists — non-fatal
-    }
+    } catch { /* skip: contract check failure — non-fatal (e.g., no frontend code) */ }
   }
 
   // Error handling audit
@@ -170,9 +168,7 @@ export async function runFullDiagnosis(
       if (Array.isArray(errorIssues)) {
         allIssues.push(...errorIssues);
       }
-    } catch {
-      // Non-fatal
-    }
+    } catch { /* skip: error audit failure — non-fatal */ }
   }
 
   // Environment variable audit
@@ -182,9 +178,7 @@ export async function runFullDiagnosis(
       if (Array.isArray(envIssues)) {
         allIssues.push(...envIssues);
       }
-    } catch {
-      // Non-fatal
-    }
+    } catch { /* skip: env audit failure — non-fatal */ }
   }
 
   // Security audit
@@ -194,9 +188,7 @@ export async function runFullDiagnosis(
       if (Array.isArray(secIssues)) {
         allIssues.push(...secIssues);
       }
-    } catch {
-      // Non-fatal
-    }
+    } catch { /* skip: security audit failure — non-fatal */ }
   }
 
   // Performance audit
@@ -206,9 +198,7 @@ export async function runFullDiagnosis(
       if (perfResult && Array.isArray(perfResult.issues)) {
         allIssues.push(...perfResult.issues);
       }
-    } catch {
-      // Non-fatal
-    }
+    } catch { /* skip: performance audit failure — non-fatal */ }
   }
 
   // Prisma audit
@@ -218,9 +208,7 @@ export async function runFullDiagnosis(
       if (prismaResult && Array.isArray(prismaResult.issues)) {
         allIssues.push(...prismaResult.issues);
       }
-    } catch {
-      // Non-fatal
-    }
+    } catch { /* skip: prisma audit failure — non-fatal */ }
   }
 
   // Server actions audit
@@ -230,9 +218,7 @@ export async function runFullDiagnosis(
       if (saResult && Array.isArray(saResult.issues)) {
         allIssues.push(...saResult.issues);
       }
-    } catch {
-      // Non-fatal
-    }
+    } catch { /* skip: server actions audit failure — non-fatal */ }
   }
 
   // Dependency vulnerability scan
@@ -242,9 +228,7 @@ export async function runFullDiagnosis(
       if (depResult && Array.isArray(depResult.issues)) {
         allIssues.push(...depResult.issues);
       }
-    } catch {
-      // Non-fatal
-    }
+    } catch { /* skip: dependency scan failure — non-fatal */ }
   }
 
   // 3. Assign deterministic IDs to issues that don't have one
@@ -260,16 +244,12 @@ export async function runFullDiagnosis(
   // 5. Update the ledger
   try {
     await updateLedger(projectPath, allIssues);
-  } catch {
-    // Ledger update failure should not break the diagnosis
-  }
+  } catch { /* skip: ledger update failure — non-fatal */ }
 
   // 6. Generate documentation
   try {
     await generateDocs(projectPath);
-  } catch {
-    // Doc generation failure should not break the diagnosis
-  }
+  } catch { /* skip: doc generation failure — non-fatal */ }
 
   // 7. Build summary
   const criticalCount = allIssues.filter((i) => i.severity === "critical" || i.severity === "bug").length;
@@ -297,9 +277,7 @@ export async function runFullDiagnosis(
     if (insights.length > 0) {
       summaryParts.push("Pattern insights: " + insights.join(" "));
     }
-  } catch {
-    // Pattern tracking failure should not break the diagnosis
-  }
+  } catch { /* skip: pattern tracking failure — non-fatal */ }
 
   const report: DiagnosisReport = {
     timestamp,
@@ -319,9 +297,7 @@ export async function runFullDiagnosis(
     const safeTimestamp = timestamp.replace(/[:.]/g, "-");
     const sanitizedReport = sanitizeForDisk(report);
     await writeJson(join(reportsDir, `${safeTimestamp}.json`), sanitizedReport);
-  } catch {
-    // Non-fatal — report is still returned
-  }
+  } catch { /* skip: report save failure — non-fatal */ }
 
   return report;
 }

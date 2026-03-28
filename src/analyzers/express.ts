@@ -74,7 +74,7 @@ async function detect(projectPath: string): Promise<boolean> {
     const deps = (pkg.dependencies ?? {}) as Record<string, string>;
     const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
     return "express" in deps || "express" in devDeps;
-  } catch {
+  } catch { /* skip: unreadable/unparseable package.json */
     return false;
   }
 }
@@ -109,14 +109,12 @@ async function scanExpressRoutes(projectPath: string): Promise<RouteInfo[]> {
   for (const filePath of sourceFiles) {
     try {
       const content = await readFile(filePath, "utf-8");
+      ROUTE_CALL_REGEX.lastIndex = 0;
       if (ROUTE_CALL_REGEX.test(content) || ROUTER_DECL_REGEX.test(content)) {
         routeFiles.push({ filePath, content });
       }
-      // Reset regex lastIndex
       ROUTE_CALL_REGEX.lastIndex = 0;
-    } catch {
-      // Skip unreadable files
-    }
+    } catch { /* skip: unreadable file */ }
   }
 
   if (routeFiles.length === 0) {
@@ -134,9 +132,7 @@ async function scanExpressRoutes(projectPath: string): Promise<RouteInfo[]> {
     try {
       const routes = analyzeExpressFile(filePath, content, project, mountMap);
       allRoutes.push(...routes);
-    } catch {
-      // Skip files that fail to parse
-    }
+    } catch { /* skip: unreadable/unparseable file */ }
   }
 
   // Sort for deterministic output
@@ -192,7 +188,7 @@ function analyzeExpressFile(
   let sourceFile: SourceFile;
   try {
     sourceFile = project.addSourceFileAtPath(filePath);
-  } catch {
+  } catch { /* skip: unreadable/unparseable file */
     return [];
   }
 
@@ -497,6 +493,7 @@ async function checkListenInRouteFile(
         // Check if this file also defines routes — that's the anti-pattern
         ROUTE_CALL_REGEX.lastIndex = 0;
         if (ROUTE_CALL_REGEX.test(content)) {
+          ROUTE_CALL_REGEX.lastIndex = 0;
           issues.push({
             id: "",
             category: "error-handling",
@@ -512,9 +509,7 @@ async function checkListenInRouteFile(
           });
         }
       }
-    } catch {
-      // Skip unreadable files
-    }
+    } catch { /* skip: unreadable file */ }
   }
 
   return issues;
@@ -544,9 +539,7 @@ async function checkMissingSecurityMiddleware(
     };
     hasHelmet = "helmet" in deps;
     hasCors = "cors" in deps;
-  } catch {
-    // No package.json
-  }
+  } catch { /* skip: unreadable/unparseable package.json */ }
 
   // Also scan entry files for usage
   for (const { content } of entryFiles) {
@@ -665,9 +658,7 @@ async function findExpressEntryFiles(
       if (/express/.test(content)) {
         results.push({ filePath, content });
       }
-    } catch {
-      // Skip unreadable files
-    }
+    } catch { /* skip: unreadable file */ }
   }
 
   return results;

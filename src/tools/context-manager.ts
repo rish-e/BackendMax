@@ -113,10 +113,11 @@ export async function initContext(projectPath: string): Promise<ProjectContext> 
   let pkg: Record<string, unknown> = {};
   try {
     const raw = await readFile(join(projectPath, "package.json"), "utf-8");
-    pkg = JSON.parse(raw);
-  } catch {
-    // package.json missing or unreadable — continue with defaults
-  }
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      pkg = parsed;
+    }
+  } catch { /* skip: package.json missing or unreadable — continue with defaults */ }
 
   const projectName = (pkg.name as string) ?? projectPath.split("/").pop() ?? "unknown";
 
@@ -140,9 +141,7 @@ export async function initContext(projectPath: string): Promise<ProjectContext> 
     if (snippet) {
       notes.push(snippet);
     }
-  } catch {
-    // No README — that's fine
-  }
+  } catch { /* skip: no README — that's fine */ }
 
   const context: ProjectContext = {
     name: projectName,

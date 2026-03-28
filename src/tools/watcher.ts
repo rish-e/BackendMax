@@ -48,6 +48,9 @@ const REPORTS_DIR = "reports";
  * Runs an incremental analysis — compares current state against the last
  * saved diagnosis report. Only highlights what changed.
  *
+ * Note: Currently runs a full diagnosis and diffs against the previous report.
+ * True incremental analysis (only scanning changed files) is planned for a future version.
+ *
  * If no previous report exists, runs a full diagnosis.
  *
  * @param projectPath  Absolute path to the project root.
@@ -200,7 +203,7 @@ async function getLatestReport(
     const latestFile = reportFiles[reportFiles.length - 1];
 
     return readJsonSafe<DiagnosisReport | null>(latestFile, null);
-  } catch {
+  } catch { /* skip: unable to read reports directory */
     return null;
   }
 }
@@ -236,13 +239,9 @@ async function findChangedFiles(
         if (fileStat.mtimeMs > sinceTime) {
           changed.push(filePath);
         }
-      } catch {
-        // Skip files we can't stat
-      }
+      } catch { /* skip: unable to stat file */ }
     }
-  } catch {
-    // Glob failure — return empty
-  }
+  } catch { /* skip: glob failure */ }
 
   return changed;
 }

@@ -208,7 +208,7 @@ export interface DiagnosisReport {
 // Middleware
 // ---------------------------------------------------------------------------
 
-/** Information about a detected middleware file. */
+/** Information about a detected middleware file. @public */
 export interface MiddlewareInfo {
   /** Absolute path to the middleware file. */
   filePath: string;
@@ -461,7 +461,7 @@ export interface PatternInsight {
 // Type flow analysis
 // ---------------------------------------------------------------------------
 
-/** A mismatch between frontend property usage and backend response shape. */
+/** A mismatch between frontend property usage and backend response shape. @public */
 export interface TypeFlowIssue {
   /** Frontend file where the property was accessed. */
   frontendFile: string;

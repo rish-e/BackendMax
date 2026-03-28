@@ -66,7 +66,7 @@ export async function parsePrismaSchema(
   let content: string;
   try {
     content = await readFile(schemaPath, "utf-8");
-  } catch {
+  } catch { /* skip: unreadable schema file */
     return null;
   }
 
@@ -347,7 +347,7 @@ export async function detectMigrationDrift(
       .filter((e) => e.isDirectory() && /^\d{14}/.test(e.name))
       .map((e) => e.name)
       .sort();
-  } catch {
+  } catch { /* skip: unable to read migrations directory */
     return issues;
   }
 
@@ -393,9 +393,7 @@ export async function detectMigrationDrift(
         description: `Last migration (${lastMigrationName}) is ${daysSinceLastMigration} days old and schema has been modified since. This may indicate forgotten migrations.`,
       });
     }
-  } catch {
-    // Unable to stat schema — skip drift detection
-  }
+  } catch { /* skip: unable to stat schema file */ }
 
   return issues;
 }

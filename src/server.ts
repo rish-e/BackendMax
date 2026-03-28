@@ -627,6 +627,10 @@ server.tool(
       let graph = graphCache.get(projectPath);
       if (!graph || rebuild) {
         graph = await buildApiGraph(projectPath);
+        // Simple eviction — clear all when too many entries
+        if (graphCache.size > 50) {
+          graphCache.clear();
+        }
         graphCache.set(projectPath, graph);
       }
 
@@ -723,7 +727,7 @@ server.tool(
 
 server.tool(
   "watch_diagnosis",
-  "Run an incremental diagnosis — compares current state against the last saved report. Highlights new issues, fixed issues, and health score changes. Much faster than a full re-run for iterative development.",
+  "Run an incremental diagnosis — compares current state against the last saved report. Highlights new issues, fixed issues, and health score changes. Runs a full analysis but highlights what changed — new issues, fixed issues, and health score delta.",
   {
     projectPath: z
       .string()

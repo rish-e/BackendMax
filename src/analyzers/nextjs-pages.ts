@@ -178,7 +178,7 @@ export async function scanPagesApiRoutes(
       let sourceFile: SourceFile;
       try {
         sourceFile = project.addSourceFileAtPath(filePath);
-      } catch {
+      } catch { /* skip: unreadable/unparseable file */
         continue;
       }
 
@@ -213,9 +213,7 @@ export async function scanPagesApiRoutes(
         methods,
         dynamicParams,
       });
-    } catch {
-      // Skip files that can't be analyzed
-    }
+    } catch { /* skip: unreadable/unparseable file */ }
   }
 
   // Sort for deterministic output

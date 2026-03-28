@@ -9,6 +9,14 @@ import { readJsonSafe, writeJson } from "../utils/helpers.js";
 
 /** Directory where backend-max stores its state. */
 const STATE_DIR = ".backend-doctor";
+
+/**
+ * Escapes a string for safe interpolation into a template literal.
+ * Replaces backticks and `${` sequences that would break template strings.
+ */
+function escapeForTemplate(str: string): string {
+  return str.replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
+}
 /** Ledger file name. */
 const LEDGER_FILE = "ledger.json";
 
@@ -158,7 +166,7 @@ async function generatePatch(
       default:
         return null;
     }
-  } catch {
+  } catch { /* skip: unable to read/parse source file */
     return null;
   }
 }
@@ -214,7 +222,7 @@ function generateErrorHandlingPatch(
     `${baseIndent}try {`,
     ...originalBody.map((l) => (l.trim() ? `  ${l}` : l)),
     `${baseIndent}} catch (error) {`,
-    `${innerIndent}console.error("${entry.title}:", error);`,
+    `${innerIndent}console.error("${escapeForTemplate(entry.title)}:", error);`,
     `${innerIndent}return Response.json(`,
     `${innerIndent}  { error: "Internal server error" },`,
     `${innerIndent}  { status: 500 }`,

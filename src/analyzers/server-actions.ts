@@ -108,9 +108,7 @@ export async function scanServerActions(
         const inlineActions = extractInlineActions(sourceFile, filePath);
         actions.push(...inlineActions);
       }
-    } catch {
-      // Skip files that can't be parsed
-    }
+    } catch { /* skip: unreadable/unparseable file */ }
   }
 
   return actions;

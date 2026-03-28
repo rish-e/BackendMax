@@ -218,22 +218,23 @@ export async function scanDependencies(projectPath: string): Promise<DepScanResu
 async function parseDependencies(projectPath: string): Promise<DepEntry[]> {
   try {
     const raw = await readFile(join(projectPath, "package.json"), "utf-8");
-    const pkg = JSON.parse(raw) as Record<string, unknown>;
+    const pkg = JSON.parse(raw);
+    if (!pkg || typeof pkg !== "object") return [];
 
     const entries: DepEntry[] = [];
 
-    const deps = (pkg.dependencies ?? {}) as Record<string, string>;
+    const deps = (pkg.dependencies && typeof pkg.dependencies === "object") ? pkg.dependencies as Record<string, string> : {};
     for (const [name, version] of Object.entries(deps)) {
       entries.push({ name, version, isDev: false });
     }
 
-    const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
+    const devDeps = (pkg.devDependencies && typeof pkg.devDependencies === "object") ? pkg.devDependencies as Record<string, string> : {};
     for (const [name, version] of Object.entries(devDeps)) {
       entries.push({ name, version, isDev: true });
     }
 
     return entries;
-  } catch {
+  } catch { /* skip: unreadable/unparseable package.json */
     return [];
   }
 }
@@ -253,9 +254,7 @@ async function checkLockFile(projectPath: string): Promise<boolean> {
     try {
       await readFile(join(projectPath, lockFile));
       return true;
-    } catch {
-      // Continue checking
-    }
+    } catch { /* skip: lock file not found — continue checking */ }
   }
 
   return false;
@@ -278,8 +277,8 @@ async function tryNpmAudit(
   try {
     // Only attempt if package-lock.json exists (npm audit requires it)
     await readFile(join(projectPath, "package-lock.json"));
-  } catch {
-    return []; // No lock file = can't run npm audit
+  } catch { /* No lock file = can't run npm audit */
+    return [];
   }
 
   try {
@@ -336,9 +335,7 @@ async function tryNpmAudit(
         });
       }
     }
-  } catch {
-    // npm audit failed — silently ignore (non-fatal, heuristic checks still run)
-  }
+  } catch { /* skip: npm audit failed — non-fatal, heuristic checks still run */ }
 
   return issues;
 }

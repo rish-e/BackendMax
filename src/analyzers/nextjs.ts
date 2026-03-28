@@ -103,9 +103,7 @@ export async function detectMiddleware(
       content = await readFile(fullPath, "utf-8");
       middlewarePath = fullPath;
       break;
-    } catch {
-      // File doesn't exist — try next candidate
-    }
+    } catch { /* skip: file doesn't exist */ }
   }
 
   // Also check inside src/
@@ -116,9 +114,7 @@ export async function detectMiddleware(
         content = await readFile(fullPath, "utf-8");
         middlewarePath = fullPath;
         break;
-      } catch {
-        // File doesn't exist
-      }
+      } catch { /* skip: file doesn't exist */ }
     }
   }
 
@@ -247,7 +243,7 @@ export function createNextJSAnalyzer(): FrameworkAnalyzer {
         const deps = (pkg.dependencies ?? {}) as Record<string, string>;
         const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
         return "next" in deps || "next" in devDeps;
-      } catch {
+      } catch { /* skip: unreadable/unparseable package.json */
         return false;
       }
     },

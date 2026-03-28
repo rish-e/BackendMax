@@ -77,7 +77,7 @@ async function detect(projectPath: string): Promise<boolean> {
     const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
     const allDeps = { ...deps, ...devDeps };
     return GRAPHQL_PACKAGES.some((p) => p in allDeps);
-  } catch {
+  } catch { /* skip: unreadable/unparseable package.json */
     return false;
   }
 }
@@ -113,9 +113,7 @@ async function scanGraphQLRoutes(projectPath: string): Promise<RouteInfo[]> {
       if (RESOLVER_PATTERNS.some((p) => p.test(content))) {
         resolverFiles.push({ filePath, content });
       }
-    } catch {
-      // Skip unreadable files
-    }
+    } catch { /* skip: unreadable file */ }
   }
 
   if (resolverFiles.length === 0) {
@@ -129,9 +127,7 @@ async function scanGraphQLRoutes(projectPath: string): Promise<RouteInfo[]> {
     try {
       const routes = analyzeGraphQLFile(filePath, content, project);
       allRoutes.push(...routes);
-    } catch {
-      // Skip files that fail to parse
-    }
+    } catch { /* skip: unreadable/unparseable file */ }
   }
 
   allRoutes.sort((a, b) => a.url.localeCompare(b.url));
@@ -153,7 +149,7 @@ function analyzeGraphQLFile(
   let sourceFile: SourceFile;
   try {
     sourceFile = project.addSourceFileAtPath(filePath);
-  } catch {
+  } catch { /* skip: unreadable/unparseable file */
     return [];
   }
 
@@ -474,9 +470,7 @@ async function checkNPlusOne(
     const pkg = JSON.parse(raw) as Record<string, unknown>;
     const deps = { ...(pkg.dependencies as Record<string, string> ?? {}), ...(pkg.devDependencies as Record<string, string> ?? {}) };
     hasDataLoader = "dataloader" in deps;
-  } catch {
-    // Ignore
-  }
+  } catch { /* skip: unreadable/unparseable package.json */ }
 
   for (const route of routes) {
     if (!route.url.startsWith("/graphql/")) continue;

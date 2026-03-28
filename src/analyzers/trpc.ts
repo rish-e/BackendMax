@@ -73,7 +73,7 @@ async function detect(projectPath: string): Promise<boolean> {
       "@trpc/next" in deps ||
       "@trpc/next" in devDeps
     );
-  } catch {
+  } catch { /* skip: unreadable/unparseable package.json */
     return false;
   }
 }
@@ -107,9 +107,7 @@ async function scanTRPCRoutes(projectPath: string): Promise<RouteInfo[]> {
       if (TRPC_ROUTER_REGEX.test(content)) {
         routerFiles.push({ filePath, content });
       }
-    } catch {
-      // Skip unreadable files
-    }
+    } catch { /* skip: unreadable file */ }
   }
 
   if (routerFiles.length === 0) {
@@ -123,9 +121,7 @@ async function scanTRPCRoutes(projectPath: string): Promise<RouteInfo[]> {
     try {
       const routes = analyzeTRPCFile(filePath, content, project);
       allRoutes.push(...routes);
-    } catch {
-      // Skip files that fail to parse
-    }
+    } catch { /* skip: unreadable/unparseable file */ }
   }
 
   allRoutes.sort((a, b) => a.url.localeCompare(b.url));
@@ -147,7 +143,7 @@ function analyzeTRPCFile(
   let sourceFile: SourceFile;
   try {
     sourceFile = project.addSourceFileAtPath(filePath);
-  } catch {
+  } catch { /* skip: unreadable/unparseable file */
     return [];
   }
 

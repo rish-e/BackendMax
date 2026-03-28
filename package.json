@@ -30,6 +30,15 @@
   ],
   "author": "Rishi Kolisetty",
   "license": "MIT",
+  "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rish-e/backend-max.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rish-e/backend-max/issues"
+  },
+  "homepage": "https://github.com/rish-e/backend-max#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "ts-morph": "^27.0.2",

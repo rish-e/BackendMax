@@ -195,9 +195,7 @@ export async function checkContracts(
         severity: "info",
       });
     }
-  } catch {
-    // Type flow analysis failure is non-fatal
-  }
+  } catch { /* skip: type flow analysis failure (non-fatal) */ }
 
   return {
     mismatches,

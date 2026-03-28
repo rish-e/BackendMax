@@ -49,9 +49,7 @@ export async function scanFrontendCalls(
       const sourceFile = project.addSourceFileAtPath(filePath);
       const fileCalls = extractCallsFromFile(sourceFile, filePath);
       calls.push(...fileCalls);
-    } catch {
-      // Skip files that can't be parsed
-    }
+    } catch { /* skip: unreadable/unparseable file */ }
   }
 
   return calls;
@@ -75,9 +73,7 @@ function extractCallsFromFile(
       if (result) {
         calls.push(result);
       }
-    } catch {
-      // Skip unparseable expressions
-    }
+    } catch { /* skip: unparseable expression */ }
   }
 
   return calls;
@@ -306,7 +302,7 @@ export async function traceResponseUsage(
       let sourceFile;
       try {
         sourceFile = project.addSourceFileAtPath(filePath);
-      } catch {
+      } catch { /* skip: unreadable/unparseable file */
         continue;
       }
 
@@ -318,13 +314,9 @@ export async function traceResponseUsage(
             filePath,
           );
           issues.push(...callIssues);
-        } catch {
-          // Skip individual call analysis failures
-        }
+        } catch { /* skip: individual call analysis failure */ }
       }
-    } catch {
-      // Skip files that fail to parse
-    }
+    } catch { /* skip: unreadable/unparseable file */ }
   }
 
   return issues;

@@ -62,9 +62,7 @@ export async function runFrameworkChecks(
     try {
       const checkIssues = await check.check(projectPath, routes);
       issues.push(...checkIssues);
-    } catch {
-      // Individual check failure should not block others
-    }
+    } catch { /* skip: individual framework check failure */ }
   }
 
   return issues;
@@ -215,8 +213,7 @@ function analyzeRouteFile(
   let sourceFile;
   try {
     sourceFile = project.addSourceFileAtPath(filePath);
-  } catch {
-    // File can't be parsed — skip it
+  } catch { /* skip: unreadable/unparseable file */
     return null;
   }
 

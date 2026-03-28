@@ -80,6 +80,11 @@ function parseArgs(argv: string[]): CliOptions {
         break;
 
       case "--min-score": {
+        if (i + 1 >= args.length) {
+          console.error("Error: --min-score requires a value.");
+          printUsage();
+          process.exit(1);
+        }
         const val = args[++i];
         if (val !== undefined) {
           const parsed = parseInt(val, 10);
@@ -91,6 +96,11 @@ function parseArgs(argv: string[]): CliOptions {
       }
 
       case "--fail-on": {
+        if (i + 1 >= args.length) {
+          console.error("Error: --fail-on requires a value (critical, warning, info).");
+          printUsage();
+          process.exit(1);
+        }
         const val = args[++i];
         if (
           val === "critical" ||
@@ -104,6 +114,11 @@ function parseArgs(argv: string[]): CliOptions {
       }
 
       case "--focus": {
+        if (i + 1 >= args.length) {
+          console.error("Error: --focus requires a value.");
+          printUsage();
+          process.exit(1);
+        }
         const val = args[++i];
         if (val) {
           options.focus = val;
@@ -112,6 +127,11 @@ function parseArgs(argv: string[]): CliOptions {
       }
 
       case "--format": {
+        if (i + 1 >= args.length) {
+          console.error("Error: --format requires a value (text, json, markdown, sarif).");
+          printUsage();
+          process.exit(1);
+        }
         const val = args[++i];
         if (
           val === "text" ||
