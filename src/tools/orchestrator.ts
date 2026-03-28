@@ -19,6 +19,9 @@ import { auditPerformance } from "./performance-auditor.js";
 import { auditPrisma } from "./prisma-auditor.js";
 import { auditServerActions } from "./server-actions-auditor.js";
 import { scanDependencies } from "./dep-scanner.js";
+import { auditRateLimitAndCaching } from "./rate-limit-auditor.js";
+import { auditApiVersioning } from "./api-versioning-auditor.js";
+import { visualizeMiddleware } from "./middleware-visualizer.js";
 import { generateDocs } from "./doc-generator.js";
 import { updateLedger } from "./ledger-manager.js";
 import { initContext, getContext } from "./context-manager.js";
@@ -41,7 +44,7 @@ const REPORTS_DIR = "reports";
 // Focus area configuration
 // ---------------------------------------------------------------------------
 
-type FocusArea = "all" | "routes" | "contracts" | "errors" | "env" | "security" | "performance" | "prisma" | "server-actions" | "dependencies";
+type FocusArea = "all" | "routes" | "contracts" | "errors" | "env" | "security" | "performance" | "prisma" | "server-actions" | "dependencies" | "rate-limiting" | "versioning" | "middleware";
 
 /**
  * Determines which audits to run based on the focus parameter.
@@ -229,6 +232,36 @@ export async function runFullDiagnosis(
         allIssues.push(...depResult.issues);
       }
     } catch { /* skip: dependency scan failure — non-fatal */ }
+  }
+
+  // Rate limiting & caching audit
+  if (shouldRun(focusArea, "rate-limiting") || shouldRun(focusArea, "security")) {
+    try {
+      const rlResult = await auditRateLimitAndCaching(projectPath);
+      if (rlResult && Array.isArray(rlResult.issues)) {
+        allIssues.push(...rlResult.issues);
+      }
+    } catch { /* skip: rate-limit audit failure — non-fatal */ }
+  }
+
+  // API versioning audit
+  if (shouldRun(focusArea, "versioning")) {
+    try {
+      const verResult = await auditApiVersioning(projectPath);
+      if (verResult && Array.isArray(verResult.issues)) {
+        allIssues.push(...verResult.issues);
+      }
+    } catch { /* skip: versioning audit failure — non-fatal */ }
+  }
+
+  // Middleware chain visualization
+  if (shouldRun(focusArea, "middleware") || shouldRun(focusArea, "security")) {
+    try {
+      const mwResult = await visualizeMiddleware(projectPath);
+      if (mwResult && Array.isArray(mwResult.issues)) {
+        allIssues.push(...mwResult.issues);
+      }
+    } catch { /* skip: middleware audit failure — non-fatal */ }
   }
 
   // 3. Assign deterministic IDs to issues that don't have one

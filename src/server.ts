@@ -35,12 +35,16 @@ import { getCommonPatterns } from "./tools/pattern-tracker.js";
 import { fixAllIssues } from "./tools/fix-engine.js";
 import { scanDependencies } from "./tools/dep-scanner.js";
 import { runIncrementalAnalysis, getChangesSummary } from "./tools/watcher.js";
+import { auditRateLimitAndCaching } from "./tools/rate-limit-auditor.js";
+import { auditApiVersioning } from "./tools/api-versioning-auditor.js";
+import { visualizeMiddleware } from "./tools/middleware-visualizer.js";
+import { traceTypes } from "./tools/type-tracer.js";
 import type { ApiGraph } from "./types.js";
 
 const server = new McpServer(
   {
     name: "backend-max",
-    version: "2.1.0",
+    version: "2.2.0",
   },
   {
     capabilities: { logging: {} },
@@ -78,6 +82,9 @@ server.tool(
         "prisma",
         "server-actions",
         "dependencies",
+        "rate-limiting",
+        "versioning",
+        "middleware",
       ])
       .default("all")
       .describe("Focus area for the diagnosis (default: all)"),
@@ -744,6 +751,9 @@ server.tool(
         "prisma",
         "server-actions",
         "dependencies",
+        "rate-limiting",
+        "versioning",
+        "middleware",
       ])
       .default("all")
       .describe("Focus area for the diagnosis (default: all)"),
@@ -828,6 +838,126 @@ server.tool(
           {
             type: "text",
             text: `Dependency scan failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Rate Limiting & Caching Audit ───────────────────────────────
+
+server.tool(
+  "audit_rate_limiting",
+  "Audit rate limiting and caching patterns. Detects rate limiting packages and code patterns, finds auth endpoints without rate limiting, identifies GET endpoints with DB calls but no caching, and flags cacheable endpoints missing Cache-Control headers.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+  },
+  async ({ projectPath }) => {
+    try {
+      const result = await auditRateLimitAndCaching(projectPath);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Rate limit audit failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── API Versioning Audit ───────────────────────────────────────
+
+server.tool(
+  "audit_versioning",
+  "Detect and audit API versioning patterns. Finds path-based (/v1/, /v2/) and header-based (X-API-Version) versioning, identifies version gaps (routes in v1 but not v2), and flags inconsistent versioning across endpoints.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+  },
+  async ({ projectPath }) => {
+    try {
+      const result = await auditApiVersioning(projectPath);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Versioning audit failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Middleware Chain Visualization ──────────────────────────────
+
+server.tool(
+  "visualize_middleware",
+  "Visualize the middleware chain for all routes. Detects global middleware (app.use), Next.js middleware, and inline middleware. Shows execution order, identifies ordering issues (CORS before auth), and flags unprotected mutation endpoints.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+  },
+  async ({ projectPath }) => {
+    try {
+      const result = await visualizeMiddleware(projectPath);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Middleware visualization failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Multi-Layer Type Tracing ────────────────────────────────────
+
+server.tool(
+  "trace_types",
+  "Trace types across application layers: frontend → route handler → service → repository → database. Finds type mismatches between layers, identifies routes accessing DB directly without service layer, and maps the full type chain for each endpoint.",
+  {
+    projectPath: z
+      .string()
+      .describe("Absolute path to the project root directory"),
+  },
+  async ({ projectPath }) => {
+    try {
+      const result = await traceTypes(projectPath);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Type tracing failed: ${error instanceof Error ? error.message : String(error)}`,
           },
         ],
         isError: true,

@@ -7,6 +7,8 @@ import { createNextJSAnalyzer } from "./nextjs.js";
 import { createExpressAnalyzer } from "./express.js";
 import { createTRPCAnalyzer } from "./trpc.js";
 import { createGraphQLAnalyzer } from "./graphql.js";
+import { createFastifyAnalyzer } from "./fastify.js";
+import { createHonoAnalyzer } from "./hono.js";
 
 // ---------------------------------------------------------------------------
 // Registry
@@ -17,6 +19,8 @@ const analyzers: FrameworkAnalyzer[] = [
   createNextJSAnalyzer(),
   createTRPCAnalyzer(),
   createGraphQLAnalyzer(),
+  createFastifyAnalyzer(),
+  createHonoAnalyzer(),
   createExpressAnalyzer(),
 ];
 

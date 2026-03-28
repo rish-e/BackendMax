@@ -27,7 +27,7 @@
 <br />
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.1.0-brightgreen.svg?style=for-the-badge)]()
+[![Version](https://img.shields.io/badge/version-2.2.0-brightgreen.svg?style=for-the-badge)]()
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-339933.svg?style=for-the-badge&logo=node.js&logoColor=white)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)]()
 [![MCP](https://img.shields.io/badge/MCP-compatible-8B5CF6.svg?style=for-the-badge)]()
@@ -163,7 +163,18 @@ npx backend-max-cli diagnose ./my-project --format json      # Raw data
 
 ## 🔬 Features Deep Dive
 
-### 🆕 v2.1 — Tier 1 Feature Drop
+### 🆕 v2.2 — Tier 2 Feature Drop
+
+| Feature | Description |
+|---------|-------------|
+| **⚡ Fastify Support** | Full route analysis with built-in JSON Schema validation detection, error handler checks, param extraction |
+| **🔥 Hono Support** | Route analysis with basePath resolution, zValidator detection, middleware arg parsing |
+| **🚦 Rate Limiting Audit** | Detects rate limiting packages/patterns, flags unprotected auth endpoints, checks caching coverage |
+| **📐 API Versioning** | Detects path/header versioning, finds version gaps, flags inconsistent versioning |
+| **🔗 Middleware Visualization** | Maps global/inline middleware chains per route, checks ordering, generates markdown visualization |
+| **🔍 Multi-Layer Type Tracing** | Traces types across frontend → route → service → repository → DB, finds cross-layer mismatches |
+
+### v2.1 — Tier 1 Feature Drop
 
 | Feature | Description |
 |---------|-------------|
@@ -356,6 +367,10 @@ All tools are exposed via MCP and available directly in Claude Code:
 | `live_test` | Optional HTTP endpoint testing (GET-only, localhost-only, safety-first) |
 | `query_api` | Query the API relationship graph — "unprotected routes", "routes writing to users" |
 | `get_patterns` | Cross-project pattern insights — most common issues by framework |
+| `audit_rate_limiting` | Rate limiting & caching audit — detects packages, code patterns, flags unprotected auth endpoints |
+| `audit_versioning` | API versioning detection — path/header versioning, version gaps, consistency checks |
+| `visualize_middleware` | Middleware chain visualization — maps execution order, checks ordering, markdown output |
+| `trace_types` | Multi-layer type tracing — traces types across frontend → route → service → DB layers |
 | `run_safety_check` | Validate project safety constraints before diagnosis |
 
 ### Tool Usage Examples
@@ -558,11 +573,11 @@ Safety limits can be tuned via `backend-max.config.json`:
 
 ### Phase 3 — Intelligence 🚧
 
-- [ ] Fastify + Hono framework support
-- [ ] Multi-layer type tracing (frontend → route → service → DB)
-- [ ] API versioning analysis
-- [ ] Rate limiting & caching audit
-- [ ] Middleware chain visualization
+- [x] Fastify + Hono framework support
+- [x] Multi-layer type tracing (frontend → route → service → DB)
+- [x] API versioning analysis
+- [x] Rate limiting & caching audit
+- [x] Middleware chain visualization
 - [ ] OpenAPI/Swagger spec generation
 - [ ] Dead code detection (unused routes/exports)
 - [ ] Test coverage mapping

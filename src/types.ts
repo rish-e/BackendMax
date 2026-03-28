@@ -24,7 +24,13 @@ export type IssueCategory =
   | "server-actions"
   | "trpc"
   | "graphql"
-  | "dependency";
+  | "dependency"
+  | "fastify"
+  | "hono"
+  | "rate-limit"
+  | "caching"
+  | "versioning"
+  | "middleware";
 
 // ---------------------------------------------------------------------------
 // Route scanning

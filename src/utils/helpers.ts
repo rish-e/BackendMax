@@ -73,6 +73,12 @@ export function generateIssueId(category: string, file: string, detail: string):
     trpc: "TPC",
     graphql: "GQL",
     dependency: "DEP",
+    fastify: "FST",
+    hono: "HNO",
+    "rate-limit": "RTL",
+    caching: "CCH",
+    versioning: "VER",
+    middleware: "MDW",
   };
 
   const prefix = prefixMap[category] ?? category.slice(0, 3).toUpperCase();
