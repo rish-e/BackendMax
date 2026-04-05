@@ -79,6 +79,13 @@ export function generateIssueId(category: string, file: string, detail: string):
     caching: "CCH",
     versioning: "VER",
     middleware: "MDW",
+    headers: "HDR",
+    cors: "COR",
+    ssl: "SSL",
+    cookies: "CKI",
+    dns: "DNS",
+    "api-surface": "API",
+    secrets: "SCR",
   };
 
   const prefix = prefixMap[category] ?? category.slice(0, 3).toUpperCase();

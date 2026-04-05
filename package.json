@@ -1,6 +1,6 @@
 {
   "name": "backend-max",
-  "version": "2.2.0",
+  "version": "2.4.0",
   "description": "The AI-powered backend diagnostic MCP that understands what you're building and makes sure it actually works.",
   "type": "module",
   "main": "dist/server.js",

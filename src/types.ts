@@ -33,7 +33,13 @@ export type IssueCategory =
   | "middleware"
   | "secrets"
   | "migrations"
-  | "tech-debt";
+  | "tech-debt"
+  | "headers"
+  | "cors"
+  | "ssl"
+  | "cookies"
+  | "dns"
+  | "api-surface";
 
 // ---------------------------------------------------------------------------
 // Route scanning

@@ -5,6 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] — 2026-04-05
+
+### Added — External Audit Suite (Black-Box Testing)
+
+8 new URL-based audit tools that work on any public website without source code access. All tools use Node.js built-ins only (no new dependencies).
+
+#### HTTP Security Header Analysis (`audit_headers`)
+- Deep analysis of 12+ security headers with A-F letter grading
+- CSP directive parsing: detects `unsafe-inline`, `unsafe-eval`, `*` wildcards
+- HSTS validation: checks max-age (>= 31536000), includeSubDomains, preload
+- Checks Cross-Origin-Opener-Policy, Cross-Origin-Resource-Policy, Cross-Origin-Embedder-Policy
+- Permissions-Policy feature restriction analysis
+
+#### CORS Misconfiguration Detection (`audit_cors`)
+- Sends preflight OPTIONS requests with test origins
+- Detects origin reflection (reflects any origin back)
+- Detects wildcard + credentials conflict (the exact issue found on coach.tetr.com)
+- Checks for overly permissive allowed methods
+- Validates Access-Control-Max-Age preflight cache
+- Tests credentialed vs non-credentialed request handling
+
+#### TLS/Certificate Analysis (`audit_ssl`)
+- Certificate chain validation using `node:tls` and `node:https`
+- Expiry monitoring: warning at 30 days, critical at 7 days
+- Protocol version check (TLS 1.2 minimum, TLS 1.3 preferred)
+- Cipher suite strength grading
+- HTTP→HTTPS redirect verification (301/308)
+- HSTS preload status check
+
+#### Cookie Security Audit (`audit_cookies`)
+- Parses all Set-Cookie headers from response
+- Checks Secure, HttpOnly, SameSite flags per cookie
+- Detects session-like cookies (session, sid, token, jwt, auth patterns) without HttpOnly
+- Flags SameSite=None without Secure flag
+- Checks cookie path/domain scope for overly broad access
+
+#### DNS & Infrastructure Analysis (`audit_dns`)
+- Resolves A, AAAA, CNAME, MX, NS, TXT records using `node:dns/promises`
+- CDN detection from CNAME records (Cloudflare, Fastly, Akamai, CloudFront, Vercel, Netlify)
+- SPF record validation from TXT records
+- DMARC record check via `_dmarc.{domain}` lookup
+- CAA (Certificate Authority Authorization) record check
+- Email security posture assessment
+
+#### Error Response Probing (`probe_error_handling`)
+- 5 probes: 404, XSS reflection, long URL, wrong content-type, SQL injection patterns
+- Detects stack trace leakage (Node.js, Python, Java, .NET patterns)
+- Framework/technology disclosure detection (Express, Django, Rails, Laravel, Spring, ASP.NET)
+- Database error exposure (SQL, MySQL, PostgreSQL, SQLite, Oracle)
+- Debug mode detection (verbose error pages, development flags)
+
+#### Authentication Surface Analysis (`audit_auth_flow`)
+- Discovers login endpoints by probing common paths (/login, /signin, /auth/login, etc.)
+- Detects auth mechanisms: password forms, OAuth (Google, GitHub, Apple), OTP/magic link, SSO
+- CSRF token detection in login forms
+- Rate limiting test: sends rapid requests to detect 429/X-RateLimit headers
+- Account enumeration risk assessment
+- Password reset flow discovery
+
+#### API Surface Discovery (`scan_public_api`)
+- Extracts `<script src>` tags from HTML
+- Scans JS bundles for API endpoint patterns (fetch, axios, /api/, /v1/, /graphql)
+- Probes each discovered endpoint to check reachability and auth requirements
+- Categorizes: public (200), auth-required (401/403), not-found (404), method-not-allowed (405)
+- Flags unprotected admin/internal endpoints
+- Maps API domains and versioning patterns
+
+### Changed
+- Issue categories expanded: `headers`, `cors`, `ssl`, `cookies`, `dns`, `api-surface`
+- Issue ID prefix map expanded: HDR, COR, SSL, CKI, DNS, API
+- MCP server instructions updated with external audit workflow
+- Prompt template updated with external audit routing (35 total tools)
+- Version bumped to 2.4.0
+
 ## [2.2.0] — 2026-03-27
 
 ### Added — Tier 2 Feature Drop

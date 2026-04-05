@@ -39,12 +39,20 @@ import { auditBreakingChanges } from "./tools/breaking-changes-auditor.js";
 import { auditMigrations } from "./tools/migration-auditor.js";
 import { auditGraphQL } from "./tools/graphql-auditor.js";
 import { scoreTechDebt } from "./tools/tech-debt-scorer.js";
+import { auditHeaders } from "./tools/header-auditor.js";
+import { auditCors } from "./tools/cors-auditor.js";
+import { auditSsl } from "./tools/ssl-auditor.js";
+import { auditCookies } from "./tools/cookie-auditor.js";
+import { auditDns } from "./tools/dns-auditor.js";
+import { probeErrorHandling } from "./tools/error-probe.js";
+import { auditAuthFlow } from "./tools/auth-flow-auditor.js";
+import { scanPublicApi } from "./tools/public-api-scanner.js";
 import type { ApiGraph } from "./types.js";
 
 const server = new McpServer(
   {
     name: "backend-max",
-    version: "2.2.0",
+    version: "2.4.0",
   },
   {
     capabilities: { logging: {} },
@@ -57,7 +65,17 @@ Key workflow:
 4. Use "get_api_docs" to read the living documentation
 5. Use "fix_issue" to apply proposed fixes
 
-The tool only analyzes backend code. It never modifies frontend/UI code.`,
+The tool analyzes backend code and never modifies frontend/UI code.
+
+For external/black-box auditing (no source code needed), use the URL-based tools:
+6. Use "audit_headers" to check HTTP security headers
+7. Use "audit_cors" to detect CORS misconfigurations
+8. Use "audit_ssl" to check TLS/certificate health
+9. Use "audit_cookies" to check cookie security
+10. Use "audit_dns" to analyze DNS and infrastructure
+11. Use "probe_error_handling" to test error information disclosure
+12. Use "audit_auth_flow" to analyze authentication surface
+13. Use "scan_public_api" to discover API endpoints from frontend JS`,
   },
 );
 
@@ -972,6 +990,224 @@ server.tool(
   },
 );
 
+// ─── External Audit Suite (URL-based, no source code needed) ────
+
+server.tool(
+  "audit_headers",
+  "Deep HTTP security header analysis with A-F letter grading. Checks CSP (unsafe-inline/eval, wildcards), HSTS (max-age, includeSubDomains, preload), COEP, COOP, CORP, Permissions-Policy, and more. No source code needed — just a URL.",
+  {
+    url: z.string().describe("The URL to audit (e.g., https://example.com)"),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async ({ url }) => {
+    try {
+      const result = await auditHeaders(url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Header audit failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+server.tool(
+  "audit_cors",
+  "CORS misconfiguration detection. Tests preflight requests, origin reflection, wildcard + credentials conflicts, overly permissive methods, and missing max-age. Catches the exact issue found on coach.tetr.com. No source code needed.",
+  {
+    url: z.string().describe("The URL to audit (e.g., https://example.com)"),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async ({ url }) => {
+    try {
+      const result = await auditCors(url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `CORS audit failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+server.tool(
+  "audit_ssl",
+  "TLS/certificate analysis. Checks certificate chain, expiry (warns at 30 days, critical at 7), protocol version (TLS 1.2+), cipher strength, HTTP→HTTPS redirect, and HSTS preload. No source code needed.",
+  {
+    url: z.string().describe("The URL to audit (e.g., https://example.com)"),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async ({ url }) => {
+    try {
+      const result = await auditSsl(url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `SSL audit failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+server.tool(
+  "audit_cookies",
+  "Cookie security audit. Checks Secure, HttpOnly, SameSite flags on all cookies. Detects session tokens without HttpOnly, SameSite=None without Secure, overly broad cookie scopes. No source code needed.",
+  {
+    url: z.string().describe("The URL to audit (e.g., https://example.com)"),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async ({ url }) => {
+    try {
+      const result = await auditCookies(url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Cookie audit failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+server.tool(
+  "audit_dns",
+  "DNS and infrastructure analysis. Resolves A/AAAA/CNAME/MX/NS/TXT records, detects CDN provider, checks SPF/DMARC/CAA records for email and certificate security. No source code needed.",
+  {
+    url: z.string().describe("The URL to audit (e.g., https://example.com)"),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async ({ url }) => {
+    try {
+      const result = await auditDns(url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `DNS audit failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+server.tool(
+  "probe_error_handling",
+  "Error response analysis. Probes with 404s, malformed input, long URLs, wrong content types, and SQL injection patterns to detect stack trace leakage, framework disclosure, database error exposure, and debug mode. No source code needed.",
+  {
+    url: z.string().describe("The URL to audit (e.g., https://example.com)"),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async ({ url }) => {
+    try {
+      const result = await probeErrorHandling(url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error probe failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+server.tool(
+  "audit_auth_flow",
+  "Authentication surface analysis. Discovers login endpoints, detects auth mechanisms (password, OAuth, OTP), checks for CSRF tokens, tests rate limiting on auth endpoints, and probes for account enumeration. No source code needed.",
+  {
+    url: z.string().describe("The URL to audit (e.g., https://example.com)"),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async ({ url }) => {
+    try {
+      const result = await auditAuthFlow(url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Auth flow audit failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+server.tool(
+  "scan_public_api",
+  "API surface discovery from frontend JavaScript. Crawls HTML for script tags, extracts API endpoint URLs from JS bundles, probes each endpoint to map auth requirements and response behavior. No source code needed.",
+  {
+    url: z.string().describe("The URL to audit (e.g., https://example.com)"),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async ({ url }) => {
+    try {
+      const result = await scanPublicApi(url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Public API scan failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
 // ─── Breaking Change Detector ────────────────────────────────────
 
 server.tool(
@@ -1183,7 +1419,7 @@ server.prompt(
 
 // ─── Prompt templates ───────────────────────────────────────────────
 
-const BACKENDMAX_PROMPT = `You have access to the Backend Max MCP server with 27 backend diagnostic tools. The user's request is:
+const BACKENDMAX_PROMPT = `You have access to the Backend Max MCP server with 35 backend diagnostic tools (including 8 external/URL-based auditors). The user's request is:
 
 > $REQUEST
 
@@ -1219,6 +1455,17 @@ Route the request to the right tool:
 - API documentation → get_api_docs
 - Issue history → get_ledger
 - What changed → check_changes / watch_diagnosis
+
+### External Audit (URL-based, no source code needed)
+- Security headers → audit_headers
+- CORS configuration → audit_cors
+- TLS/SSL certificates → audit_ssl
+- Cookie security → audit_cookies
+- DNS & infrastructure → audit_dns
+- Error information leakage → probe_error_handling
+- Authentication surface → audit_auth_flow
+- API surface discovery → scan_public_api
+- General external check → audit_external
 
 ### Fixing Issues
 1. Run diagnosis first if no recent results

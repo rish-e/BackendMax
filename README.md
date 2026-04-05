@@ -27,7 +27,7 @@
 <br />
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.2.0-brightgreen.svg?style=for-the-badge)]()
+[![Version](https://img.shields.io/badge/version-2.4.0-brightgreen.svg?style=for-the-badge)]()
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-339933.svg?style=for-the-badge&logo=node.js&logoColor=white)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)]()
 [![MCP](https://img.shields.io/badge/MCP-compatible-8B5CF6.svg?style=for-the-badge)]()
@@ -224,7 +224,28 @@ npx backend-max-cli diagnose ./my-project --format json      # Raw data
 
 ## 🔬 Features Deep Dive
 
-### 🆕 v2.2 — Tier 2 Feature Drop
+### 🆕 v2.4 — External Audit Suite (Black-Box Testing)
+
+Audit **any website** with just a URL — no source code, no credentials, no access needed.
+
+| Tool | Description |
+|------|-------------|
+| **🔒 `audit_headers`** | HTTP security header analysis with A-F grading. Deep CSP parsing (unsafe-inline/eval, wildcards), HSTS validation (max-age, preload), COEP/COOP/CORP checks |
+| **🌐 `audit_cors`** | CORS misconfiguration detection. Tests origin reflection, wildcard + credentials conflicts, overly permissive methods, missing preflight cache |
+| **🔐 `audit_ssl`** | TLS/certificate analysis. Chain validation, expiry warnings, protocol version check (TLS 1.2+), cipher grading, HTTP→HTTPS redirect |
+| **🍪 `audit_cookies`** | Cookie security flags audit. Checks Secure, HttpOnly, SameSite on all cookies. Detects exposed session tokens |
+| **🌍 `audit_dns`** | DNS & infrastructure fingerprinting. CDN detection, SPF/DMARC/CAA records, email security posture |
+| **💥 `probe_error_handling`** | Error response probing. Tests for stack trace leakage, framework disclosure, database errors, debug mode exposure |
+| **🔑 `audit_auth_flow`** | Authentication surface analysis. Discovers login endpoints, detects auth mechanisms, tests rate limiting, checks account enumeration |
+| **🔍 `scan_public_api`** | API surface discovery. Extracts endpoints from frontend JS bundles, maps auth requirements, finds unprotected APIs |
+
+```
+# Audit any website — no source code needed
+Use audit_headers on https://example.com
+Use scan_public_api on https://example.com
+```
+
+### v2.2 — Tier 2 Feature Drop
 
 | Feature | Description |
 |---------|-------------|
