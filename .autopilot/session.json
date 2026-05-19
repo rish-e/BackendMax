@@ -1,0 +1,19 @@
+{
+  "task": "Publish backend-max to 5 MCP directories",
+  "plan": [
+    "Start Chrome CDP",
+    "Get npm token via browser",
+    "Publish to npm",
+    "Submit to Official MCP Registry",
+    "Submit to Smithery.ai",
+    "Submit to Glama.ai",
+    "Verify mcp.so submission",
+    "PulseMCP auto-syncs"
+  ],
+  "completed": [],
+  "current_step": 1,
+  "services_used": [],
+  "snapshot_label": "",
+  "timestamp": "2026-03-29T00:51:50Z",
+  "notes": ""
+}
